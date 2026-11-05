@@ -1,0 +1,12 @@
+/* Print-only Foxmail paper shell. Structural selectors deliberately stop before
+   .mail_content_panel_zoom_layout: sender HTML colors/backgrounds are untouched. */
+@media print {
+  html#FoxmailClientHTML,
+  body#FoxmailClientBody,
+  #FoxmailClientBody > #body_main > .mail_session > .mail_full_panel,
+  #FoxmailClientBody > #body_main > .mail_session_body > .mail_session > .mail_full_panel {
+    background-color: #ffffff !important;
+  }
+  body#FoxmailClientBody { color: #000000 !important; }
+}
+

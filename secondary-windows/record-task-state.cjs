@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs'),path=require('path'),root=path.resolve(__dirname,'..');
+const state=JSON.parse(fs.readFileSync(path.join(root,'dark-build-state.json'),'utf8'));
+state.validation.userValidatedBeforeLatest='1.3 user reports secondary-page borders/buttons generally good. Signature text and format icons low contrast; color work postponed by latest instruction.';
+state.validation.pending='Print-only1.3.1 candidate under review on unchanged1.3: print paper-shell isolation and exact native preview Show gate. Compose/reply/forward flash remains; editor1.4 work deferred.';
+state.editorColorPreference={choice:'Light editing paper, dark toolbar, preserve sent colors',status:'Deferred by user; do not install now',rejected:'CSS -webkit-text-fill-color display candidate leaks into edited/exported HTML in2/9synthetic editing cases',evidence:'cosmetic-1.4/editor-display-contrast-decision.json'};
+state.remainingIssues=['Write and reply windows: initial white editor region followed by complete UI','Forward window: transient black region','Print preview: user reports0.5second blank white viewport then dark printed content unless background printing unchecked','Possible first cold startup border / first tray reveal','Signature text and format toolbar contrast deferred'];
+state.signatureObservation='User confirms same signature is readable in received/sent reading view but low contrast in forwarding/settings editor. Consistent with display-only reading contrast and unchanged stored editor colors; editor work remains deferred.';
+state.printDiagnosis={theme:'Original unscoped mail_full_panel background interpolates GetSysColor5, now202020, and is retained by print HTML cloning.',candidate:'Print-only application paper-shell white and default foreground black; preserve authored message style and screen dark theme.',timing:'Exact native TPrintPreviewForm can cover synchronous Show only. Asynchronous CEF PrintToPDF is not a completed frame on Show return.'};
+state.nextExperimentalDecision='Review and stage print-only candidate; preserve stable1.3 for exact rollback. Do not gate Compose until indirect OnShow branches are audited. No global cloak or waiting through modal loop.';
+fs.writeFileSync(path.join(root,'dark-build-state.json'),JSON.stringify(state,null,2));
+console.log('Recorded latest scope; installed version remains1.3.');

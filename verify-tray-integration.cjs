@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('fs');
+const pe=require('./inspect-pe.cjs');
+const meta=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+const code=[],byte=(...v)=>code.push(...v),u32=v=>{const b=Buffer.alloc(4);b.writeUInt32LE(v>>>0);byte(...b);};
+const emitted=require('./add-tray-restore.cjs').emit({byte,u32,code,imports:pe.imports});
+const native=meta.nativeTrayRestore;
+const show=meta.hooks.find(h=>h.name==='ShowWindow');
+if(!show||native.start!==show.start+13)throw Error('Tray adapter is not immediately after ShowWindow base prologue');
+if(!native||native.size!==emitted.size||native.sourceReturnRva!==emitted.sourceReturnRva)throw Error('Tray adapter metadata mismatch');
+const at=pe.off(meta.sectionRVA+native.start);
+if(!pe.b.subarray(at,at+code.length).equals(Buffer.from(code)))throw Error('Integrated tray adapter differs from tested generator');
+console.log('PASS integrated tray adapter matches isolated tested generator and actual import addresses');

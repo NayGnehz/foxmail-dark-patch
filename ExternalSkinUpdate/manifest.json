@@ -1,0 +1,127 @@
+[
+  {
+    "relative": "Skin\\Controls\\Border.png",
+    "originalSHA256": "c2c2ca59e8cd18dfe6328317ff022ebdcda413f495af138f831b6d482b1102d5",
+    "newSHA256": "dd16157d271700bd887e1eb70f59aaeff4b4678f96259a031b2fe7513c892597"
+  },
+  {
+    "relative": "Skin\\Controls\\button_blue_disable.png",
+    "originalSHA256": "9f11cebaf501d1931f70a7eeb83fdcd9fe65c9e7ce7f9f4f021ccd34bcb46e5e",
+    "newSHA256": "6122cdee0aa8b8ea61be596583e23593201e60c1cc2c278671e4b13efad80471"
+  },
+  {
+    "relative": "Skin\\Controls\\button_blue_focus.png",
+    "originalSHA256": "1f6d9d54433b02fa39ee6d18428ac8baeba0c2dd41c5628fe1bf37f1d5e6a698",
+    "newSHA256": "fe4b1dd58c93bef2ac5b84af15841ca35588920974d8774451a37f6b24a167bf"
+  },
+  {
+    "relative": "Skin\\Controls\\button_blue_hover.png",
+    "originalSHA256": "7d06d7d8c5f4aad0cc57d6fb0b2370e394cbba6254e0b2c37a487449bc4795fe",
+    "newSHA256": "35c04c50380cc6f9bc7a1371fc35a7c1e1e44e6326d7c59eb7eb496cfe6e319d"
+  },
+  {
+    "relative": "Skin\\Controls\\button_blue_normal.png",
+    "originalSHA256": "041d16b5bf288d7458b7090f3192263c6c2ce353c2b58cc9fa09612101989a2b",
+    "newSHA256": "82fb9d4fb5dab58f69efffd27cedae9df4faa0b46faea6b204bfe14f10c90deb"
+  },
+  {
+    "relative": "Skin\\Controls\\button_blue_press.png",
+    "originalSHA256": "4b79bc51ec0d6bab01222b848070d17c0ab5848bd6d94efb07f3ce44237bd47e",
+    "newSHA256": "1e61766b652e59b32e06eec3f2c33f89c68ec8cec3cc36e7746e397537b2c808"
+  },
+  {
+    "relative": "Skin\\Controls\\button_disable.png",
+    "originalSHA256": "131012abff7426e01a50fb27f359e0ce20599826e25b1435f925ea16afd1b407",
+    "newSHA256": "1a1439c1a58c51d51b7810a2855a6927d46e3aa656c6c03ea6425235179511ed"
+  },
+  {
+    "relative": "Skin\\Controls\\button_focus.png",
+    "originalSHA256": "e8643d982059ae2c191ac670e27eeb10692c3fff450b058694cee50741c07721",
+    "newSHA256": "823f491db6bbc7046661d7df5c255444e824637a0bd3dabe77b4e3a6900c1041"
+  },
+  {
+    "relative": "Skin\\Controls\\button_hover.png",
+    "originalSHA256": "abebcbe1d49f5b9a79183f9368c288b56d6eac2ba6c3f68b2cb2f23ffd60d00c",
+    "newSHA256": "a97d2f0493ea90193742e2f96f0aced54f41d9b52006a6e34f7105fa4e1775f2"
+  },
+  {
+    "relative": "Skin\\Controls\\button_normal.png",
+    "originalSHA256": "e042272c9cd18e47d364845c549d3ddb54b1f294898e6c2f325bb3993f9e21ee",
+    "newSHA256": "35cee4e7f7d60693c96d4f257c14d5fbee9ac9d94f8fc3dcb0a3a4744c4b30db"
+  },
+  {
+    "relative": "Skin\\Controls\\button_press.png",
+    "originalSHA256": "afec894bd22da920c30c421522fd952b572e7a642ca11c7a05692ad9bfd044c9",
+    "newSHA256": "b16b20e9b49d00849ebb154c0fe189387016c010e20101baf82917c9c84d8ae2"
+  },
+  {
+    "relative": "Skin\\Controls\\menu_bg.png",
+    "originalSHA256": "bd9a3a990b04a9efe4481e2a15cb46790c05631ca574bacee6636e3234f09bdd",
+    "newSHA256": "7a6b8c0e6bcb62f2b31ee2c052193b23fd3268f56d1e2681ca383c655db96b15"
+  },
+  {
+    "relative": "Skin\\Controls\\radio_hover.png",
+    "originalSHA256": "d6b33bdde4a75907fc0238e33c84478adf159a69c6edd75b6af143c4e5302925",
+    "newSHA256": "3d31ed110fa85f11d65a43c87ff8b802e2d29424eba1f1a7803731fa12812627"
+  },
+  {
+    "relative": "Skin\\Controls\\radio_select.png",
+    "originalSHA256": "5d544ac9c41a9f656ab22d6a15412d901fd9db2acf9a247536119adc6d7f810d",
+    "newSHA256": "fb8229bdd52214e48c78783466f21847d9d121981fff00a37ae9777ab54b99c9"
+  },
+  {
+    "relative": "Skin\\Controls\\radio_select_disable.png",
+    "originalSHA256": "0d6a9fb92e6c97ed8846f2153a58c091a4c0e6ec9f18f6b43357ce000ffcad1d",
+    "newSHA256": "3c5f3989bf2911b1b9af23a1aa0bfb2ff647e7129ceb888e90c1a60258044f6a"
+  },
+  {
+    "relative": "Skin\\Controls\\radio_unselect.png",
+    "originalSHA256": "912b14e3a6702050ab913f37c5cf7a3c7148e4acf0701231a65ce56cf3237d81",
+    "newSHA256": "a7f77526c6bd5957d9d4fd9dfdb23528c825519a942497472e7537e29a33f0d0"
+  },
+  {
+    "relative": "Skin\\Controls\\radio_unselect_disable.png",
+    "originalSHA256": "1e02ebacaf85c6bac0cfe6dc3ad0e5f6e62e83a70e5ad15fd6774fd136e3f1ae",
+    "newSHA256": "3c5f3989bf2911b1b9af23a1aa0bfb2ff647e7129ceb888e90c1a60258044f6a"
+  },
+  {
+    "relative": "Skin\\Controls\\select_disable.png",
+    "originalSHA256": "6ff7a03cb1d42315cbd8ec4b8666e238b72ad975694f980adcc7a312d724f76e",
+    "newSHA256": "643a561319b7203a3cfff9746019da2237079aff1d74f76f6ffeb2ea0348e92c"
+  },
+  {
+    "relative": "Skin\\Controls\\select_hover.png",
+    "originalSHA256": "5670697fb2acb57607662aff0bef669f888f817d8d9848a0db0b678ec2e241c6",
+    "newSHA256": "3ffdef85fddf281ba370e01201885cbddf97494ceada0126a54caa75e3904d4c"
+  },
+  {
+    "relative": "Skin\\Controls\\select_icon_disable_arrow.png",
+    "originalSHA256": "1f7ffd541de65691e15e7da0266ec913e28fe75be9171ba4afb123c4b1b7a15f",
+    "newSHA256": "15f9778fe59f24b9aec4687ce35d6a7d890ac446d817165e866dc2ab470da9a6"
+  },
+  {
+    "relative": "Skin\\Controls\\select_icon_normal_arrow.png",
+    "originalSHA256": "56727eb15652d153a1a4425a96342b1fd8103fd004ee86ff6a4881da3eb9006b",
+    "newSHA256": "ce60a577bafefe0cfb76a8762ebd88669fee92655f890ab2e5006149f6610b2c"
+  },
+  {
+    "relative": "Skin\\Controls\\select_normal.png",
+    "originalSHA256": "99c9e3a60b7909bdf3e42f4baa3d9f80f59bf39eab20dcb02aaf48ff58e01a29",
+    "newSHA256": "85fff124f7d3a7a43fa0f953081304e25f68a14d24a1a54bd0044d789d7bb117"
+  },
+  {
+    "relative": "Skin\\Controls\\select_press.png",
+    "originalSHA256": "28908826bf645561c45d321f20892166a4d392b71e847bf7e0beb6a11563d031",
+    "newSHA256": "25d8d17dd12d9bffd420221fa45573d9c0d202100e6ab52ce5b70bd1b7d49f58"
+  },
+  {
+    "relative": "PngImages\\custom_combo_hover.png",
+    "originalSHA256": "4dfc022125d611a36e394850ce4ffc06a587fcaa3346b0c379a58d142478b071",
+    "newSHA256": "876fbc695fc1032f0008a5f8ce51479b0b3a08e6abbc8445210423f2da959a26"
+  },
+  {
+    "relative": "PngImages\\custom_combo_normal.png",
+    "originalSHA256": "43c0c72abef4e88fe1d37660c44a964587b4e31ab51d01a2e37fbcfcd1d8118d",
+    "newSHA256": "5045e171d483c98af9b7caae3771de06b814aa44f51cf0f50668a127029e8c87"
+  }
+]

@@ -1,0 +1,30 @@
+﻿$ErrorActionPreference='Stop'
+$target='D:\Users\Public\Downloads\Foxmail'
+$stableHash='9F96617168EA3A80E0F9188DBB5C29DF5EC43FC2AA457137895D9E2ADAD19DB2'
+$candidateHash='7795A2DDF98823E58A5C7CE533626ED4BBCE9DADF50E0A8AAC4646636E9DCAEA'
+$destination=Join-Path $target 'Foxmail深色.exe'
+$candidate=Join-Path $PSScriptRoot 'Foxmail-dark-fixed.exe'
+$backup=Join-Path $target 'DarkModeBackup\BeforePaintDiagnostic-9F966171'
+$metadata=Join-Path $target 'DarkModeBackup\build-info.json'
+if(Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'Foxmail*' -or $_.Name -eq 'TxBugReport.exe' }){throw '请保存内容并完全退出 Foxmail 和错误报告窗口'}
+if((Get-FileHash -LiteralPath (Join-Path $target 'Foxmail.exe')).Hash -ne '54DA7A968AD8A12BF80978269EDFC57F520AF9F19A18E5B78BF48742983DD4DF'){throw '原版文件校验失败'}
+if((Get-FileHash -LiteralPath $destination).Hash -ne $stableHash){throw '当前深色版与已确认版本不符'}
+if((Get-FileHash -LiteralPath $candidate).Hash -ne $candidateHash){throw '诊断候选校验失败'}
+$lock=[IO.File]::Open($destination,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+$lock.Dispose()
+New-Item -ItemType Directory -Path $backup -Force | Out-Null
+$saved=Join-Path $backup 'Foxmail深色.exe'
+if(Test-Path -LiteralPath $saved){if((Get-FileHash -LiteralPath $saved).Hash -ne $stableHash){throw '专用回退备份校验失败'}}else{Copy-Item -LiteralPath $destination -Destination $saved}
+$savedMeta=Join-Path $backup 'build-info.json'
+if(!(Test-Path -LiteralPath $savedMeta)){Copy-Item -LiteralPath $metadata -Destination $savedMeta}
+try{
+ Copy-Item -LiteralPath $candidate -Destination $destination -Force
+ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Foxmail-dark.exe.json') -Destination $metadata -Force
+ if((Get-FileHash -LiteralPath $destination).Hash -ne $candidateHash){throw '安装后校验失败'}
+}catch{
+ Copy-Item -LiteralPath $saved -Destination $destination -Force
+ Copy-Item -LiteralPath $savedMeta -Destination $metadata -Force
+ throw
+}
+$candidateHash | Set-Content -LiteralPath (Join-Path $target 'DarkModeBackup\installed-sha256.txt')
+Write-Output 'Installed diagnostics-only executable; templates, skins and account data untouched. Dedicated stable executable and build metadata backed up.'
