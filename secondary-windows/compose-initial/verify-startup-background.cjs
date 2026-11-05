@@ -2,7 +2,7 @@
 const fs=require('fs'),path=require('path'),assert=require('assert'),crypto=require('crypto');
 const {chromium}=require('C:/Users/Public/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const {pngDecode}=require('../../recolor-search-scrollbars.cjs');
-const app='D:/Users/Public/Downloads/Foxmail/7.2.25.563/Template';
+const paths=require('../../foxmail-paths.cjs'),output=paths.output('compose-initial'),app=path.join(paths.fixed('compose-rollback-09d9f83f'),'7.2.25.563/Template');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const decode=b=>b.toString(b[0]===255&&b[1]===254?'utf16le':'utf8').replace(/^\ufeff/,'');
 const source=rel=>decode(fs.readFileSync(path.join(app,rel)));
@@ -14,7 +14,7 @@ assert(at>=0);const candidate=Buffer.concat([raw.subarray(0,at),Buffer.from('<bo
 assert.equal(decode(candidate),patched);assert(candidate.subarray(0,at).equals(raw.subarray(0,at)));
 assert(candidate.includes(Buffer.from('#202020',raw[0]===255?'utf16le':'utf8')));
 assert.equal(patched.replace('<body style="background-color: #202020">','<body>'),body);
-fs.mkdirSync(path.join(__dirname,'payload'),{recursive:true});fs.writeFileSync(path.join(__dirname,'payload/compose_body.html'),candidate);
+fs.mkdirSync(path.join(output,'payload'),{recursive:true});fs.writeFileSync(path.join(output,'payload/compose_body.html'),candidate);
 const fixture='<div id="divFMContentBody"><p id="one" style="color:black">alpha beta gamma</p><p id="two" style="color:rgb(90,10,10)">delta epsilon</p><p id="paper" style="background:white;color:black">white paper</p><font color="#116633">legacy green</font></div>';
 const errors=[],results=[];
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
@@ -51,5 +51,5 @@ const errors=[],results=[];
  }
  assert.deepStrictEqual(errors,[]);
  const report={passed:true,installed:false,relative:'7.2.25.563/Template/'+relative,baselineSHA256:sha(raw),candidateSHA256:sha(candidate),encoding,originalBOMAndOtherBytesPreserved:true,soleDelta:'body opening tag gains initialbackground-color #202020; no inner message element, stylesheet, script, content, font or final display-color change',startup,finalBodyBackgroundEqual:true,existingBackgroundSetterPreserved:true,actualGetTextAndHtmlCases:results.length,results,scriptErrors:errors,limitations:['Isolated Edge with static application JS and synthetic content; no real mail/signatures read or printed','Confirms an HTML pre-initialization blank-canvas path; not proof all actual Foxmail flashes use this path','Native controls and browser first-surface/layout remain separate'],proof:'Existing InitFoxEditor still sets bodybackground from J2D_GetWindowColor; the new attribute only supplies the same expected color sooner.'};
- fs.writeFileSync(path.join(__dirname,'startup-background-validation.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({passed:true,cases:results.length,startup,baselineSHA256:sha(raw),candidateSHA256:sha(candidate)}));
+ fs.writeFileSync(path.join(output,'startup-background-validation.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({passed:true,cases:results.length,startup,baselineSHA256:sha(raw),candidateSHA256:sha(candidate)}));
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

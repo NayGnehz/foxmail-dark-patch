@@ -1,3 +1,6 @@
+# Retired frozen release packager; historical source follows, do not recreate an accepted version.
+throw '1.0 is already accepted under _发布/foxmail/1.0; use restore-release-template.ps1 with an explicit target. No rebuild or new archive.'
+
 $ErrorActionPreference='Stop'
 $appRoot='D:\Users\Public\Downloads\Foxmail'
 $releaseRoot=Join-Path $PSScriptRoot 'releases\1.0'

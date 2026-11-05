@@ -1,5 +1,10 @@
-import sys,json,hashlib,pathlib,contextlib,importlib.util
-root=pathlib.Path(r'D:\Workspace\Foxmail'); dest=pathlib.Path(__file__).resolve().parent
+import sys,json,hashlib,pathlib,contextlib,importlib.util,os
+root=pathlib.Path(__file__).resolve().parents[2]
+instance=os.environ.get('FOXMAIL_PIPELINE_LEASE')
+if not instance or pathlib.Path(instance) != pathlib.Path(os.environ.get('PORTABLE_INSTANCE_ROOT','')):
+    raise RuntimeError('Run through Invoke-FoxmailPipeline.ps1 -Tool python -Script <this source>; canonical lease required')
+dest=pathlib.Path(instance)/'temp'/'native-compose-native-gate'
+dest.mkdir(parents=True,exist_ok=True)
 spec=importlib.util.spec_from_file_location('native',root/'native-whitebars.py'); n=importlib.util.module_from_spec(spec);spec.loader.exec_module(n)
 with (dest/'compose-admission-critical-disasm.txt').open('w',encoding='utf8') as f,contextlib.redirect_stdout(f):
     print('Static original-binary evidence; no user content or live process. Explicit spans are local snippets, not inferred adjacent routines.')

@@ -6,8 +6,11 @@
 
 `build-and-check.ps1` 和标记 `FOXMAIL_RETIRED_BASELINE_CLI` 的入口属于已退役历史实验，直接运行会明确失败；源码保留供理解历史，不应重新生成已删除的旧候选。
 
-当前原生步骤见 `secondary-windows/print-native-gate/build-native-v2.ps1` 和 `secondary-windows/compose-native-gate/build-native-v2.ps1`。桥接、候选暂存及录制器重建仍有路径/固定依赖闭包待维护，不能把当前仓库称作端到端便携发行构建。详见 [整理结果及未完成项](docs/cleanup-report-20261105.md)。
+当前原生步骤见 `secondary-windows/print-native-gate/build-native-v2.ps1` 和 `secondary-windows/compose-native-gate/build-native-v2.ps1`。桥接/候选暂存已接入固定输入和登记缓存；录制器重建和旧验证记录仍有固定依赖闭包/证据有效性待维护，不能把当前仓库称作端到端便携发行构建。详见 [整理结果及未完成项](docs/cleanup-report-20261105.md)。
 
 仓库不包含邮件、账户、用户配置、密钥、录制帧、实际部署目录、候选 EXE/DLL、固定第三方工具、原始反汇编/参考提取物或未知 JSON。仅 `ExternalSkinUpdate/manifest.json` 经确认属于皮肤 PNG 路径/hash 清单后单独纳入。忽略文件仍保留在本地，不因 Git 提交被删除。
 
 历史源选择说明见 [source history](docs/source-history.md)。
+正式1.0 **修改包**（不是完整Foxmail安装包）现位于同一总根的 `_发布/foxmail/1.0`；项目 `restore-release-template.ps1` 从共享总根相对定位它，恢复目标须显式指定。运行中的外部Foxmail和邮件数据保持原位。候选/阶段产物归 `_开发缓存/projects/foxmail/cleanup-01a1aba4/temp`；参见 `Invoke-FoxmailPipeline.ps1`（沿用canonical锁/lease）和 `foxmail-paths.cjs`。
+
+原生/桥接/暂存入口的路径调整没有重跑业务验证；缓存内既有JSON是原测试结果，部分记录包含路径调整前源码hash。`print-candidate/review.cjs` 仍保留源hash校验，因此旧报告与新入口hash不同时会失败，须在未来正常研究验证时生成新证据，不能把迁移视为新验证通过。`compose-initial/verify-startup-background.cjs` 还需要旧Playwright/完整编辑器测试资源，固定B只提供本轮已明确的compose模板，不补建浏览器测试闭包。

@@ -1,7 +1,25 @@
 # Foxmail 整理实际结果（2026-11-05）
 
-累计实际释放 **590,616,856 B（563.26 MiB）**；未编译、自测或新增皮肤功能。没有关闭/杀死Foxmail或录制器，未删除录像/帧，未读取、哈希、复制或迁移邮件、账户、运行配置、密钥。
+累计实际释放 **658,169,835 B（627.68 MiB）**；未编译、自测或新增皮肤功能。没有关闭/杀死Foxmail或录制器，未删除录像/帧，未读取、哈希、复制或迁移邮件、账户、运行配置、密钥。
 
+## 本轮布局已实际收口（替代下文相应“待迁/待切”历史状态）
+
+- 累计实际删除同份软件/特批旧EXE：658,169,835 B。新增释放67,552,979 B，为共享两组输入覆盖的9个仍在源码的精确文件，以及cosmetic-1.3/payload同字节a3d3 EXE；两个原请求文件已经随候选移到cache，不将其再算删除。没有新建历史归档。
+- 正式1.0修改包35文件22,559,385 B和既有同版ZIP9,980,891 B已原字节同卷迁 D:\Workspace\_发布\foxmail\1.0。payload/版本未变；仅恢复脚本与说明作路径适配。它仍是修改包，不是完整Foxmail安装；manifest旧targetRoot只作来源记录。项目 restore-release-template.ps1 通过共享总根相对定位发布包，TargetRoot须显式给出；Restore-FoxmailModpack.ps1保存恢复源模板，save-release-1.0旧再打包入口已退役。没有调用恢复/VerifyOnly。
+- 86个print/compose候选及阶段产物91,786,853 B，按精确清单同卷移登记temp下 native-print-native-gate、native-compose-native-gate、print-candidate、compose-candidate、compose-initial、print-theme-payload。当前086e候选payload保留原hash，不变为正式版；没有移动源码/录制/用户帧。
+- 源码root的94个已完成生成文件497,906,285 B（62 EXE/BIN及相应sidecar、合成preview）精确同卷迁同实例temp/legacy-root，核无源根运行EXE、owner/hash/无reparse/独占占用，移动后复hash。旧程序保存在可再生缓存而非正式版本清单，不新归档/升级；没有删这批软件文件。
+- 合计本轮归位原文件622,233,414 B（发布32,540,276 B+候选91,786,853 B+源码root497,906,285 B）；此为迁移量，不计为磁盘释放。
+- 两组固定输入已就绪并消费：_开发环境/feeds/native/foxmail-build-inputs/cosmetic-a3d3700d（5文件22,586,402 B）及compose-rollback-09d9f83f（6文件22,591,047 B）；manifest foxmail-build-inputs-20261105.json SHA256=3a0709b1e5bb5c394910fc7df26ab461ea67c1ae78d4d2c4191d6279c4fc1a19，逐文件复验一致。它们是固定开发/回滚输入，不是旧候选成品清单。输入/消费者精确映射仍在docs/fixed-input-request-20261105.json（本地软件metadata，Git忽略）。
+- 已完成bridge/stage/review/audit最小I/O切换，保留补丁字节算法/版本/原编译目标。print bridge读A+已发布1.0 gate对照；compose bridge读B；candidate stage分别读A/B模板与构建metadata，不读取外部运行安装。所有新输出由Invoke-FoxmailPipeline.ps1经共享工具/环境/canonical Prepare及lease运行，落登记temp；foxmail-paths.cjs提供固定输入/输出定位，不另建注册器。Python audit须通过该入口-Tool python运行。相邻模板生成器也仅改固定模板/缓存路径，不调用它们。
+- 安装/回滚入口源码留项目，读取登记cache计划/payload，部署TargetRoot须显式提供；不自动使用旧外部安装路径。本次只静态解析PowerShell/Node源码，没有执行pipeline、编译、录制、安装、回滚或业务自测。
+
+仍有实质边界：
+1. 录制器Framework编译闭包未完整便携（下文详述），现用EXE和外部运行Foxmail/邮件在 D:\Users\Public\Downloads\Foxmail，继续原位；不在本次D:\Workspace
+2. 既有JSON报告属于原测试证据；部分含路径调整前源码hash。review仍保留hash校验，不会冒称新入口已验证；重跑前需在正常研究验证中生成适配后证据。本轮不重测。compose初始模板验证还依赖旧Playwright/完整编辑器测试资源，未为其补新工具栈；固定B只含已明确的模板输入。
+3. 源码root最终metadata核对EXE/BIN=0；14个旧flash/restore帧目录仍保留（含用户实际录制和历史自检），未借整理迁移/删除。__pycache__、analysis-libs剩余非manifest字节码、未确证部分下载和其他参考/旧诊断报告仍按先前边界保留；两个root SKIN_*.png为皮肤源资源，其他3个合成preview已归cache。未知/private JSON及原始资料不进Git。
+4. 根历史诊断/安装脚本如仍读取旧源码root生成EXE路径，应视为旧实验源码，现用入口以print/compose Pipeline和发布恢复入口为准，不重建被删除的1.1/1.2或旧实验EXE。未继续扩大旧链移植/审核范围。
+
+## 先前执行明细（历史状态以本轮收口为准）
 ## 已执行
 
 1. 删除39个已与完整wheel逐段比对相同的下载分片：D:\Workspace\Foxmail\native-toolchain\wheel-parts\0..38，80,418,705 B。

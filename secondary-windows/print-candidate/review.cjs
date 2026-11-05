@@ -1,14 +1,14 @@
 'use strict';
 const fs=require('fs'),path=require('path'),crypto=require('crypto'),assert=require('assert');
-const root=path.resolve(__dirname,'../..'),sha=b=>crypto.createHash('sha256').update(b).digest('hex');
-const read=r=>fs.readFileSync(path.join(root,r)),json=r=>JSON.parse(read(r).toString('utf8').replace(/^\ufeff/,''));
+const paths=require('../../foxmail-paths.cjs'),root=paths.project,output=paths.output('print-candidate'),sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const read=r=>fs.readFileSync(paths.artifact(r)),json=r=>JSON.parse(read(r).toString('utf8').replace(/^\ufeff/,''));
 const nativeDir='secondary-windows/print-native-gate/';
 const n=json(nativeDir+'candidate-validation.json'),p=json('secondary-windows/print-theme-staged-validation.json'),d=json('secondary-windows/print-theme-isolation-decision.json');
 assert(n.passed&&n.eligibleForIntegration&&!n.installed&&!n.foxmailExecuted);
 assert.equal(n.tests.native.failures,0);assert.equal(n.tests.productionDLL.failures,0);assert(n.tests.actualEmitted.passed);
 for(const [name,hash] of Object.entries(n.files))assert.equal(sha(read(nativeDir+name)),hash);
 for(const source of n.sources)assert.equal(sha(read(nativeDir+source.name)),source.candidateSHA256);
-const baseline=read('cosmetic-1.3/payload/Foxmail深色.exe'),candidate=read(nativeDir+'Foxmail深色.exe');
+const baseline=fs.readFileSync(path.join(paths.fixed('cosmetic-a3d3700d'),'Foxmail深色.exe')),candidate=read(nativeDir+'Foxmail深色.exe');
 assert.equal(sha(baseline),n.baseline.sha256);assert.equal(candidate.length,baseline.length);
 let deltas=0;for(let i=0;i<candidate.length;i++)if(candidate[i]!==baseline[i]){deltas++;assert(n.bridge.allowedRanges.some(([a,b])=>i>=a&&i<b),'Unexpected executable change');}
 assert.equal(deltas,31);assert.equal(n.bridge.virtualSizeBefore,799);assert.equal(n.bridge.virtualSizeAfter,825);
@@ -17,5 +17,5 @@ assert.equal(p.cases.length,2);for(const c of p.cases)for(const [key,value] of O
 assert.equal(sha(read(d.payload)),d.candidateSHA256);assert.equal(p.candidateSHA256,d.candidateSHA256);
 const rels=[nativeDir+'Foxmail深色.exe',nativeDir+'FoxmailRevealGate.dll',nativeDir+'candidate-validation.json',nativeDir+'emitted-bridge-audit.json',nativeDir+'native-fixture-stdout.txt',nativeDir+'production-dll-check-stdout.txt',nativeDir+'foxmail_reveal_gate.c',nativeDir+'build-print-bridge.cjs','secondary-windows/print-theme-payload/mail_frame.html','secondary-windows/print-theme-isolation.css','secondary-windows/print-theme-isolation-validation.json','secondary-windows/print-theme-staged-validation.json','secondary-windows/print-theme-isolation-decision.json'];
 const result={passed:true,version:'1.3.1-print-candidate',review:'Root reviewed exact class admission, unchanged original callback/ABI, owned lifetime/recovery, minimal executable delta, CSS inheritance and exact staged-template tests.',nativeChecks:n.tests.native.checks,dllChecks:n.tests.productionDLL.checks,bridgeCases:n.tests.actualEmitted.cases,templateStructures:p.cases.length,original1_3ByteDelta:deltas,actualFoxmailVisualValidation:false,artifacts:rels.map(relative=>({relative,sha256:sha(read(relative))}))};
-fs.writeFileSync(path.join(__dirname,'reviewed-validation.json'),JSON.stringify(result,null,2));
+fs.writeFileSync(path.join(output,'reviewed-validation.json'),JSON.stringify(result,null,2));
 console.log(JSON.stringify({passed:true,nativeChecks:result.nativeChecks,dllChecks:result.dllChecks,bridgeCases:result.bridgeCases,templateStructures:result.templateStructures,changedExeBytes:deltas}));

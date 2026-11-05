@@ -1,7 +1,16 @@
-param([switch]$Preflight,[switch]$Rollback)
+param([Parameter(Mandatory)][string]$TargetRoot,[string]$InstanceId='cleanup-01a1aba4',[switch]$Preflight,[switch]$Rollback)
 $ErrorActionPreference='Stop'
-$target='D:\Users\Public\Downloads\Foxmail'
-$plan=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'install-plan.json') -Raw | ConvertFrom-Json
+$target=[IO.Path]::GetFullPath($TargetRoot)
+$project=Get-Item -LiteralPath $PSScriptRoot
+while($project -and !(Test-Path -LiteralPath (Join-Path $project.FullName 'Invoke-FoxmailPortable.ps1'))){$project=$project.Parent}
+if($project){
+ $context=& (Join-Path $project.FullName 'Invoke-FoxmailPortable.ps1') -Action Resolve -InstanceId $InstanceId
+ $candidateRoot=Join-Path $context.instanceRoot 'temp\print-candidate'
+}else{
+ $candidateRoot=$PSScriptRoot
+ if(!(Test-Path -LiteralPath (Join-Path $candidateRoot 'install-plan.json'))){throw 'Candidate plan missing; use the source entry or its registered cache installer'}
+}
+$plan=Get-Content -LiteralPath (Join-Path $candidateRoot 'install-plan.json') -Raw | ConvertFrom-Json
 function Hash([string]$p){(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}
 function SafePath([string]$root,[string]$relative){
  $resolved=[IO.Path]::GetFullPath((Join-Path $root $relative))
@@ -11,7 +20,7 @@ function SafePath([string]$root,[string]$relative){
 if(!$plan.eligibleForInstall -or $plan.version -ne '1.3.1-print-candidate' -or $plan.files.Count -ne 4 -or $plan.fileCount -ne 4){throw 'Unverified install plan'}
 if((Hash (Join-Path $target 'Foxmail.exe')) -ne $plan.originalSHA256){throw 'Original executable version changed'}
 $backup=SafePath $target $plan.backup
-$payload=Join-Path $PSScriptRoot 'payload'
+$payload=Join-Path $candidateRoot 'payload'
 foreach($f in $plan.files){
  $current=SafePath $target $f.relative
  $saved=SafePath $backup $f.relative
