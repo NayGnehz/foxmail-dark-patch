@@ -2,10 +2,10 @@
 from pathlib import Path
 import os,sys,struct,json,re,hashlib
 workspace=Path(os.environ['PORTABLE_WORKSPACE_ROOT'])
-sys.path.insert(0,str(workspace/'_开发环境/tools/python-libs/capstone/5.0.9/win-x64'))
+sys.path.insert(0,str(workspace/'_env/tools/python-libs/capstone/5.0.9/win-x64'))
 from capstone import Cs,CS_ARCH_X86,CS_MODE_32,CS_OP_IMM,CS_OP_REG,CS_OP_MEM
 md=Cs(CS_ARCH_X86,CS_MODE_32);md.detail=True
-old=(workspace/'_开发环境/feeds/native/foxmail-build-inputs/cosmetic-a3d3700d/Foxmail深色.exe').read_bytes()
+old=(workspace/'_env/feeds/native/foxmail-build-inputs/cosmetic-a3d3700d/Foxmail深色.exe').read_bytes()
 assert hashlib.sha256(old).hexdigest()=='a3d3700d0c5e60810c4694fb0a49216da65460050c467e359d322183ac8576fb'
 new=Path(r'D:\Users\Public\Downloads\Foxmail\Foxmail.exe').read_bytes()
 assert hashlib.sha256(new).hexdigest()=='f208b5c29816d1a5ca5859edbaf1b5e83f2c8e9cab2cfe0c3fdfdd4566d5b399'

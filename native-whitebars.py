@@ -1,10 +1,10 @@
 import sys,struct,re,json
 # Fixed shared dependency; no per-project installation or global fallback.
 from pathlib import Path
-_workspace = next((p for p in Path(__file__).resolve().parents if (p / '_开发环境' / 'contracts' / 'portable-v1.json').is_file()), None)
+_workspace = next((p for p in Path(__file__).resolve().parents if (p / '_env' / 'contracts' / 'portable-v1.json').is_file()), None)
 if _workspace is None:
     raise RuntimeError('Restore the registered shared environment beside Foxmail')
-_capstone_root = _workspace / '_开发环境' / 'tools' / 'python-libs' / 'capstone' / '5.0.9' / 'win-x64'
+_capstone_root = _workspace / '_env' / 'tools' / 'python-libs' / 'capstone' / '5.0.9' / 'win-x64'
 if not (_capstone_root / 'capstone' / '__init__.py').is_file():
     raise RuntimeError('Restore shared Capstone 5.0.9; no global fallback')
 sys.path.insert(0, str(_capstone_root))

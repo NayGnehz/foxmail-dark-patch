@@ -1,4 +1,4 @@
-# Project adapter derived from _开发环境/templates/portable-template.ps1.
+# Project adapter derived from _env/templates/portable-template.ps1.
 [CmdletBinding()]
 param(
  [ValidateSet('Resolve','Environment','Tool')][string]$Action='Resolve',
@@ -7,9 +7,9 @@ param(
 )
 $ErrorActionPreference='Stop'
 $ancestor=Get-Item -LiteralPath $PSScriptRoot
-while($ancestor -and !(Test-Path -LiteralPath (Join-Path $ancestor.FullName '_开发环境\contracts\portable-v1.json'))){$ancestor=$ancestor.Parent}
+while($ancestor -and !(Test-Path -LiteralPath (Join-Path $ancestor.FullName '_env\contracts\portable-v1.json'))){$ancestor=$ancestor.Parent}
 if(!$ancestor){throw 'Restore the registered shared environment beside Foxmail first'}
-$entry=Join-Path $ancestor.FullName '_开发环境\bin\Invoke-Portable.ps1'
+$entry=Join-Path $ancestor.FullName '_env\bin\Invoke-Portable.ps1'
 $context=& $entry -Action Resolve -ProjectId foxmail -InstanceId $InstanceId
 if($Action -eq 'Resolve'){return $context}
 if($Action -eq 'Tool'){

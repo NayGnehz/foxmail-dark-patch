@@ -2,9 +2,9 @@
 param([Parameter(Mandatory)][string]$TargetRoot,[switch]$VerifyOnly)
 $ErrorActionPreference='Stop'
 $ancestor=Get-Item -LiteralPath $PSScriptRoot
-while($ancestor -and !(Test-Path -LiteralPath (Join-Path $ancestor.FullName '_开发环境\contracts\portable-v1.json'))){$ancestor=$ancestor.Parent}
+while($ancestor -and !(Test-Path -LiteralPath (Join-Path $ancestor.FullName '_env\contracts\portable-v1.json'))){$ancestor=$ancestor.Parent}
 if(!$ancestor){throw 'Shared portable environment not found'}
-$context=& (Join-Path $ancestor.FullName '_开发环境\bin\Invoke-Portable.ps1') -Action Resolve -ProjectId foxmail -InstanceId version587-20261105
+$context=& (Join-Path $ancestor.FullName '_env\bin\Invoke-Portable.ps1') -Action Resolve -ProjectId foxmail -InstanceId version587-20261105
 Import-Module (Join-Path $context.environmentRoot 'bin\PortableCache.psm1')
 Invoke-PortableInstance -ProjectId foxmail -InstanceId version587-20261105 -Mode Prepare -Body {
  param($instance)

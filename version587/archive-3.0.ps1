@@ -8,9 +8,9 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId version587-20261105 -Mode
  param($instance)
  function Hash([string]$p){(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}
  $app=[IO.Path]::GetFullPath($AppRoot).TrimEnd('\')
- $release=Join-Path $context.workspaceRoot '_发布\foxmail\3.0'
+ $release=Join-Path $context.workspaceRoot '_releases\foxmail\3.0'
  $stage=Join-Path $instance.instanceRoot 'temp\release-3.0-staging'
- $previousManifest=Join-Path $context.workspaceRoot '_发布\foxmail\2.0\manifest.json'
+ $previousManifest=Join-Path $context.workspaceRoot '_releases\foxmail\2.0\manifest.json'
  foreach($path in @($app,$release,$stage,$previousManifest)){$null=Assert-PortablePlainPath $path}
  if((Test-Path -LiteralPath $release) -or (Test-Path -LiteralPath $stage)){throw 'Archive/staging already exists; do not overwrite 3.0'}
  $previousManifestHash='b4fdfc7e12df1cf1d96303b5d39bfcbcc20bc5f111dd4624ea6085cc85ac08a9'
@@ -67,7 +67,7 @@ Foxmail 深色修改包 3.0
 写信/回复/转发白闪仍未解决，用户截图显示编辑区上半白、下半黑。用户Alt+A启动微信截图时，写信弹窗外围白线高概率出现，鼠标重绘只能清一部分。
 深色编辑区黑字可读性和账号页竖线仍未解决；提醒窗改色视觉待确认。主窗的微信截图触发尚未独立复测，两轮主窗启动无白边的验收不代表其他窗口白边已解决。3.0命名不表示这些问题已经修复。
 校验：.\恢复3.0.ps1 -TargetRoot 'Foxmail安装目录' -VerifyOnly
-恢复：完全退出对应 Foxmail 后运行同一命令并去掉 -VerifyOnly。需要同一共享总根中的 _开发环境；原文件先保存在登记开发缓存，只覆盖清单中的39项，不会自动启动。
+恢复：完全退出对应 Foxmail 后运行同一命令并去掉 -VerifyOnly。需要同一共享总根中的 _env；原文件先保存在登记开发缓存，只覆盖清单中的39项，不会自动启动。
 VerifyOnly校验本包清单SHA256、39项payload的长度/hash和目标原版身份，不写入或重启目标程序，也不要求目标当前深色文件与本包相同。
 "@
  [IO.File]::WriteAllText((Join-Path $stage '说明.txt'),$note+"`r`n",[Text.UTF8Encoding]::new($false))

@@ -7,7 +7,7 @@ Import-Module (Join-Path $context.environmentRoot 'bin\PortableCache.psm1')
 Invoke-PortableInstance -ProjectId foxmail -InstanceId version587-20261105 -Mode Prepare -Body {
  param($instance)
  function Hash([string]$p){(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}
- $temp=Join-Path $instance.instanceRoot 'temp';$release=Join-Path $context.workspaceRoot '_发布\foxmail\2.0';$stage=Join-Path $temp 'release-2.0-staging'
+ $temp=Join-Path $instance.instanceRoot 'temp';$release=Join-Path $context.workspaceRoot '_releases\foxmail\2.0';$stage=Join-Path $temp 'release-2.0-staging'
  $null=Assert-PortablePlainPath $release;$null=Assert-PortablePlainPath $stage
  if((Test-Path -LiteralPath $release) -or (Test-Path -LiteralPath $stage)){throw 'Archive/staging already exists; do not overwrite 2.0'}
  $buffer=Get-Content -LiteralPath (Join-Path $temp 'version587-goal\buffer-validation.json') -Raw|ConvertFrom-Json

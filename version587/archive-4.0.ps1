@@ -8,9 +8,9 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId version587-20261105 -Mode
  param($instance)
  function Hash([string]$p){(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}
  $app=[IO.Path]::GetFullPath($AppRoot).TrimEnd('\')
- $release=Join-Path $context.workspaceRoot '_发布\foxmail\4.0'
+ $release=Join-Path $context.workspaceRoot '_releases\foxmail\4.0'
  $stage=Join-Path $instance.instanceRoot 'temp\release-4.0-staging'
- $previousManifest=Join-Path $context.workspaceRoot '_发布\foxmail\3.0\manifest.json'
+ $previousManifest=Join-Path $context.workspaceRoot '_releases\foxmail\3.0\manifest.json'
  foreach($path in @($app,$release,$stage,$previousManifest)){$null=Assert-PortablePlainPath $path}
  if((Test-Path -LiteralPath $release) -or (Test-Path -LiteralPath $stage)){throw 'Archive/staging already exists; do not overwrite 4.0'}
  $previousManifestHash='15f1f7d5b23746772d37c3b6a46fe64be5c65dc84582eec333e3060b5fc7a880'
@@ -67,7 +67,7 @@ Foxmail 深色修改包 4.0
 最终数值为14次收到就绪通知并释放显示、0次超时/失败，DPI为120。显示门只对写信窗口异步等待其自身加载通知及完整渲染窗口，不改变邮件HTML或模板内容；不是所有可能时序的保证。
 设置→账号页两条竖线、深色编辑区黑字可读性仍未解决，提醒窗改色视觉待确认。按用户要求先封存4.0，再继续研究账号竖线；2.0和3.0归档保留。
 校验：.\恢复4.0.ps1 -TargetRoot 'Foxmail安装目录' -VerifyOnly
-恢复：完全退出对应 Foxmail 后运行同一命令并去掉 -VerifyOnly。需要同一共享总根中的 _开发环境；原文件先保存在登记开发缓存，只覆盖清单中的39项，不会自动启动。
+恢复：完全退出对应 Foxmail 后运行同一命令并去掉 -VerifyOnly。需要同一共享总根中的 _env；原文件先保存在登记开发缓存，只覆盖清单中的39项，不会自动启动。
 VerifyOnly校验本包清单SHA256、39项payload的长度/hash和目标原版身份，不写入或重启目标程序，也不要求目标当前深色文件与本包相同。
 "@
  [IO.File]::WriteAllText((Join-Path $stage '说明.txt'),$note+"`r`n",[Text.UTF8Encoding]::new($false))

@@ -2,10 +2,10 @@
 const fs=require('fs'),path=require('path'),cp=require('child_process');
 const project=__dirname;
 let workspace=project;
-while(!fs.existsSync(path.join(workspace,'_开发环境/contracts/portable-v1.json'))){
+while(!fs.existsSync(path.join(workspace,'_env/contracts/portable-v1.json'))){
  const parent=path.dirname(workspace);if(parent===workspace)throw Error('Restore the shared environment beside Foxmail');workspace=parent;
 }
-const environment=path.join(workspace,'_开发环境');
+const environment=path.join(workspace,'_env');
 // Use the registered shared PowerShell and canonical project adapter, never global tools.
 const contract=JSON.parse(fs.readFileSync(path.join(environment,'contracts/portable-v1.json'),'utf8').replace(/^\uFEFF/,''));
 const pwsh=path.join(environment,contract.tools.pwsh.path);
