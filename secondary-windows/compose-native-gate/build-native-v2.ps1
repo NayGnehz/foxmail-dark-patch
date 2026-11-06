@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$')][string]$InstanceId='cleanup-01a1aba4')
+param([ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$')][string]$InstanceId='cleanup-01a1aba4',[string]$SourceDirectory,[ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$')][string]$OutputGroup='native-compose-native-gate')
 $ErrorActionPreference='Stop'
 $project=Get-Item -LiteralPath $PSScriptRoot
 while($project -and !(Test-Path -LiteralPath (Join-Path $project.FullName 'Invoke-FoxmailPortable.ps1'))){$project=$project.Parent}
@@ -9,13 +9,15 @@ $adapter=Join-Path $base 'Invoke-FoxmailPortable.ps1'
 $context=& $adapter -Action Resolve -InstanceId $InstanceId
 $environment=& $adapter -Action Environment -InstanceId $InstanceId
 $zig=& $adapter -Action Tool -Tool zig -InstanceId $InstanceId
-$sourceGate=$PSScriptRoot
+$sourceGate=if($SourceDirectory){[IO.Path]::GetFullPath($SourceDirectory)}else{$PSScriptRoot}
+if(!$sourceGate.StartsWith($base+'\',[StringComparison]::OrdinalIgnoreCase) -and !$sourceGate.StartsWith($context.instanceRoot+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Native source must belong to the project or this registered instance'}
 Import-Module (Join-Path $context.environmentRoot 'bin\PortableCache.psm1')
 Invoke-PortableInstance -ProjectId foxmail -InstanceId $InstanceId -Mode Prepare -Body {
  param($nativeContext)
- $gate=Join-Path $nativeContext.instanceRoot 'temp\native-compose-native-gate'
+ $gate=Join-Path $nativeContext.instanceRoot ('temp\'+$OutputGroup)
  $libs=Join-Path $gate 'import-libs'
  $null=Assert-PortablePlainPath $gate
+ $null=Assert-PortablePlainPath $sourceGate
  $null=Assert-PortablePlainPath $libs
  [void][IO.Directory]::CreateDirectory($libs)
  $previous=@{}
@@ -56,7 +58,7 @@ function Enable-NativeSeh([string]$Path) {
 }
 $definitions=@{
  kernel32=@('GetLastError@0','SetLastError@4','GetCurrentProcessId@0','GetCurrentThreadId@0','InterlockedCompareExchange@12','InterlockedExchange@8','InterlockedIncrement@4','GetModuleHandleW@4','RaiseException@16','ExitProcess@4','LoadLibraryExW@12','GetProcAddress@8','FreeLibrary@4')
- user32=@('IsWindow@4','IsWindowVisible@4','IsIconic@4','GetWindowThreadProcessId@8','GetClassNameW@12','GetWindowLongW@8','GetAncestor@8','GetPropW@8','SetPropW@12','RemovePropW@8','RedrawWindow@16','RegisterClassW@4','UnregisterClassW@8','CreateWindowExW@48','DefWindowProcW@16','ShowWindow@8','DestroyWindow@4')
+ user32=@('IsWindow@4','IsWindowVisible@4','IsIconic@4','GetWindowThreadProcessId@8','GetClassNameW@12','GetWindowLongW@8','GetClassLongW@8','SetWindowLongW@12','GetAncestor@8','GetPropW@8','SetPropW@12','RemovePropW@8','RedrawWindow@16','RegisterClassW@4','UnregisterClassW@8','CreateWindowExW@48','DefWindowProcW@16','ShowWindow@8','DestroyWindow@4')
  dwmapi=@('DwmGetWindowAttribute@16','DwmSetWindowAttribute@16')
  msvcrt=@('_except_handler3','_local_unwind2','_abnormal_termination','memcpy','memset','printf','puts','fflush')
 }

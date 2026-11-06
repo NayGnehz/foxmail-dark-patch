@@ -52,3 +52,28 @@ elif sys.argv[1]=='classes-near':
     name=n.classname(v)
     if name.startswith('T') and name.replace('_','').isalnum():print(hex(v),name)
   except Exception:pass
+elif sys.argv[1]=='string':
+ for a in sys.argv[2:]:
+  va=int(a,16);q=n.off(va);length=n.read(va-4);assert 0<length<=256
+  print(hex(va),n.b[q:q+length*2].decode('utf-16-le').split('\0')[0])
+elif sys.argv[1]=='dispatch':
+ for v in n.classes(sys.argv[2]):
+  while v:
+   p=n.read(v-48);rows=[]
+   if p:
+    count=struct.unpack_from('<H',n.b,n.off(p))[0];assert count<4096
+    for i in range(count):
+     msg=struct.unpack_from('<H',n.b,n.off(p+2+2*i))[0]
+     if msg in [15,20,0x85,0x317,0x318]:rows.append((hex(msg),hex(n.read(p+2+2*count+4*i))))
+   print(n.classname(v),hex(v),rows)
+   p=n.read(v-36);v=n.read(p)if p else 0
+elif sys.argv[1]=='virtuals':
+ for v in n.classes(sys.argv[2]):
+  print(sys.argv[2],hex(v),'size',n.read(v-40))
+  print(json.dumps([(hex(k),hex(n.read(v+k)))for k in range(0,0x70,4)]))
+elif sys.argv[1]=='png-field':
+ start=n.off(0x8c0000);end=n.off(0x8c9000);needle=bytes.fromhex(sys.argv[2]);at=start
+ while True:
+  at=n.b.find(needle,at,end)
+  if at<0:break
+  print(hex(n.va(at)),n.b[max(start,at-12):at+24].hex());at+=1
