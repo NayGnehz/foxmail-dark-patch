@@ -2,7 +2,11 @@
 import json,os,re,sys,types,time
 from pathlib import Path
 
-EXPECTED_SHA='4ca3440e7da018de28d3b920f93ba38af3f8500d1a767a7c091430577b6853c3'
+NCA_SHA='4ca3440e7da018de28d3b920f93ba38af3f8500d1a767a7c091430577b6853c3'
+PRESIZE_SHA='252f62e085fdbaf161286c81ea459c110021b1eef6db4b2e5ab9398c2792f930'
+presize='--presize' in sys.argv[1:]
+if presize:sys.argv.remove('--presize')
+EXPECTED_SHA=PRESIZE_SHA if presize else NCA_SHA
 root=Path(os.environ['PORTABLE_INSTANCE_ROOT'])/'temp'
 stage=root/'version587-compose-ncactivate'
 maps=json.loads((root/'version587-goal/canvas-map.json').read_text())
@@ -21,9 +25,17 @@ iconic=p.bind(p.user,'IsIconic',p.W.BOOL,[p.W.HWND])
 foreground=p.bind(p.user,'GetForegroundWindow',p.W.HWND,[])
 CLASSES={'TFoxComposeForm.UnicodeClass':(0x90b0c4,1768),'TFoxMainFrm.UnicodeClass':(0xbdd0ac,1368)}
 m=json.loads((stage/'validation.json').read_text())
-assert m['candidateSHA256']==EXPECTED_SHA and m['baselineSHA256']=='f8f4732d8fd74411c6bed7306041d02cbdcb4bad604eb3dc265b4fa6f7d03f82'
+assert m['candidateSHA256']==NCA_SHA and m['baselineSHA256']=='f8f4732d8fd74411c6bed7306041d02cbdcb4bad604eb3dc265b4fa6f7d03f82'
 assert m['oldMainSectionByteIdentical'] and m['siteRva']==0x6166e7 and m['vmtRva']==0x90b0c4
 assert m['counterRva']==22552696 and m['mainCounterRva']==22548600
+counter_rvas={'composeFirstDefaultSuppressed':m['counterRva'],'mainFirstDefaultSuppressed':m['mainCounterRva']}
+if presize:
+    stage=root/'version587-compose-presize'
+    ps=json.loads((stage/'validation.json').read_text())
+    assert ps['candidateSHA256']==PRESIZE_SHA and ps['baselineSHA256']==NCA_SHA
+    assert ps['existingPayloadsUnchanged'] and ps['oldTrampolinePreserved'] and ps['vmtRva']==0x90b0c4
+    assert ps['counterRva']==22553628 and ps['busyRva']==22553624
+    counter_rvas.update(composePrelayoutApplied=ps['counterRva'],composePrelayoutBusy=ps['busyRva'])
 if sys.argv[1:]==['--check']:
     print('Exact compose candidate metadata, 587 mapping and numeric API bindings verified; no process opened.')
     sys.exit(0)
@@ -31,7 +43,7 @@ assert len(sys.argv)==2 and sys.argv[1].isdigit()
 probe=p.Snapshot(int(sys.argv[1]));rows=[];errors=[]
 try:
     probe.guard()
-    for rva in (m['counterRva'],m['mainCounterRva']):assert 0<=rva<=probe.image_size-4
+    for rva in counter_rvas.values():assert 0<=rva<=probe.image_size-4
     @p.CALLBACK
     def each(hwnd,_):
         owner=p.W.DWORD();p.window_pid(hwnd,p.C.byref(owner))
@@ -62,7 +74,8 @@ try:
         except RuntimeError as ex:errors.append(str(ex))
         return True
     assert p.enum_windows(each,0)
-    counters={'composeFirstDefaultSuppressed':probe.u32(p.BASE+m['counterRva']),'mainFirstDefaultSuppressed':probe.u32(p.BASE+m['mainCounterRva'])}
+    counters={name:probe.u32(p.BASE+rva)for name,rva in counter_rvas.items()}
+    if presize:assert counters['composePrelayoutBusy'] in (0,1)
     assert probe.process_stamp()==probe.created
     report={'pid':probe.pid,'softwareSHA256':EXPECTED_SHA,'readOnly':True,'noTextNoHTMLNoURLsNoScreenshots':True,'numericBytes':probe.bytes_read,'counters':counters,'rows':rows,'errors':errors,'limitation':'Counter hits prove branch execution only; they do not prove removal of a visible border or body flash.'}
     dest=stage/('activation-state-'+str(time.time_ns())+'.json')

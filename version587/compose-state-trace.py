@@ -12,7 +12,16 @@ for item in maps['vmt']:
  code,count=re.subn(r'0x'+format(item['oldVA']-0x400000,'x')+r'\b',hex(item['newVA']-0x400000),code,flags=re.I)
  assert count>=1
 p=types.ModuleType('compose_numeric_587');p.__file__=str(source);exec(compile(code,str(source),'exec'),p.__dict__)
-p.EXPECTED_SHA='f8f4732d8fd74411c6bed7306041d02cbdcb4bad604eb3dc265b4fa6f7d03f82'
+# Explicit candidate selection keeps the read-only object map bound to a known
+# image; never accept an arbitrary installed executable hash.
+candidate='--ncactivate' in sys.argv[1:]
+if candidate:sys.argv.remove('--ncactivate')
+presize='--presize' in sys.argv[1:]
+if presize:sys.argv.remove('--presize')
+assert not(candidate and presize),'Select only one exact candidate'
+p.EXPECTED_SHA=('252f62e085fdbaf161286c81ea459c110021b1eef6db4b2e5ab9398c2792f930' if presize else
+                '4ca3440e7da018de28d3b920f93ba38af3f8500d1a767a7c091430577b6853c3' if candidate else
+                'f8f4732d8fd74411c6bed7306041d02cbdcb4bad604eb3dc265b4fa6f7d03f82')
 p.ATOMS=tuple(x['newRVA']for x in maps['atoms'])
 for name,value in list(p.EDITORS.items()):p.EDITORS[name+'.UnicodeClass']=value
 EVENT=C.WINFUNCTYPE(None,W.HANDLE,W.DWORD,W.HWND,W.LONG,W.LONG,W.DWORD,W.DWORD)
@@ -65,10 +74,30 @@ rows=[];errors=[];known={};last={};last_window={};started=time.perf_counter();fi
 
 def state(h):
  window=probe.window(h);rt=ancestor(h,2)
- if window['windowClass'] not in CLASSES or not rt or probe.window(rt)['windowClass']!=TARGET:return None
+ if window['windowClass'] not in CLASSES or not rt:return None
+ root_window=probe.window(rt)
+ if root_window['windowClass']!=TARGET:return None
  cloaked=W.DWORD();hr=attribute(rt,14,C.byref(cloaked),4)
- return dict(window=window,composeHwnd=p.hx(rt),dpi=dpi(rt),cloaked=cloaked.value if hr==0 else None,
-             gateOwned=bool(prop(rt,'FxRevealGate.Owner.43E5CD38.v2')))
+ data=dict(window=window,composeHwnd=p.hx(rt),rootWindow=root_window,dpi=dpi(rt),cloaked=cloaked.value if hr==0 else None,
+           gateOwned=bool(prop(rt,'FxRevealGate.Owner.43E5CD38.v2')))
+ for atom_rva in p.ATOMS:
+  atom=int.from_bytes(probe.read(p.BASE+atom_rva,2),'little')
+  if atom<0xc000:continue
+  obj=p.get_prop(rt,atom)or 0
+  if not obj:continue
+  try:
+   probe.object_guard(obj,0x90b0c4,1768)
+   if probe.u32(obj+0x180)!=rt:continue
+   width=probe.u32(obj+0x48);height=probe.u32(obj+0x4c)
+   visible=probe.u8(obj+0x57);window_state=probe.u8(obj+0x22b)
+   if not 0<width<16000 or not 0<height<16000:raise RuntimeError('compose-size-guard')
+   if visible not in (0,1)or window_state not in (0,1,2):raise RuntimeError('compose-state-guard')
+   probe.object_guard(obj,0x90b0c4,1768)
+   if probe.u32(obj+0x180)!=rt or (p.get_prop(rt,atom)or 0)!=obj:raise RuntimeError('compose-size-identity-race')
+   data['composeControlSize']=[width,height]
+   data['composeVisible57']=visible;data['composeWindowState22B']=window_state;break
+  except RuntimeError:continue
+ return data
 
 @EVENT
 def event(_,kind,h,obj,child,tid,tick):
@@ -107,7 +136,7 @@ try:
   if first_show is not None and now-first_show>=4:stop_reason='four-seconds-after-first-show';break
   # Once a compose appears, sample only its validated editor chain, at 20Hz.
   # Unchanged samples are discarded. No pixel copying or text APIs.
-  if first_show is not None and now>=next_sample:
+  if now>=next_sample:
    next_sample=now+.05
    @p.CALLBACK
    def top(h,_):
@@ -127,7 +156,7 @@ try:
       except Exception as ex:
        if len(errors)<20:errors.append(type(ex).__name__+': '+str(ex))
       return True
-     p.enum_children(h,child,0)
+     if first_show is not None:p.enum_children(h,child,0)
     except RuntimeError:pass
     return True
    p.enum_windows(top,0)
