@@ -1,5 +1,5 @@
 """Exact 4.0 account control drawing fields/geometry; no text or account data."""
-import ctypes as C,json,os,re,sys,time,types
+import ctypes as C,json,os,re,struct,sys,time,types
 from pathlib import Path
 
 root=Path(os.environ['PORTABLE_INSTANCE_ROOT'])/'temp/version587-goal'
@@ -15,7 +15,9 @@ exec(compile(code,str(source),'exec'),p.__dict__)
 p.EXPECTED_SHA='62faa3d801b1fcf8726a5b29f9636b8cc6e0fbec96e215ff7c856be6bbb5e52c'
 p.ATOMS=tuple(x['newRVA']for x in mapping['atoms'])
 counter=None
-inset_mode='--inset' in sys.argv[1:]
+bottom_mode='--bottom' in sys.argv[1:]
+inset_mode='--inset' in sys.argv[1:]or bottom_mode
+assert not(bottom_mode and '--inset' in sys.argv[1:])
 edge_mode='--edge' in sys.argv[1:]or inset_mode
 assert not(inset_mode and '--edge' in sys.argv[1:])
 assert not(edge_mode and '--counter' in sys.argv[1:])
@@ -27,7 +29,7 @@ if '--counter' in sys.argv[1:]:
     p.EXPECTED_SHA=counter['candidateSHA256']
     assert [h['slotRva']for h in counter['hooks']]==[0x76a6b0,0x76a6bc,0x76a6c0,0x76a6c4]
 if edge_mode:
-    sys.argv.remove('--inset'if inset_mode else '--edge')
+    sys.argv.remove('--bottom'if bottom_mode else '--inset'if inset_mode else '--edge')
     counter=json.loads((root.parent/'version587-account-edge-calls/validation.json').read_text())
     assert counter['baselineSHA256']==p.EXPECTED_SHA
     assert counter['candidateSHA256']=='1c38639672b9ca1e5de77db307d604d7ac89ad1246c8ed8e44a88bb785ce6913'
@@ -38,6 +40,12 @@ if edge_mode:
         assert layout['baselineSHA256']==p.EXPECTED_SHA and layout['candidateSHA256']=='540cf174a53e319529605b0cb3e171550783a6fe6455d29d16e5bc410f6d1f33'
         assert layout['changedBytes']==1 and layout['parsedDfmOnlyWidthChanged']and layout['allOtherBytesUnchanged']
         p.EXPECTED_SHA=layout['candidateSHA256']
+        if bottom_mode:
+            bottom=json.loads((root.parent/'version587-group-bottom-probe/validation.json').read_text())
+            assert bottom['baselineSHA256']==p.EXPECTED_SHA and bottom['candidateSHA256']=='3a8c69a4db654d9a783535e505cdccb3e66ab8c5b67496efb0fa5309617b4933'
+            assert bottom['siteRva']==0x47badd and bottom['targetRva']==0x4c668c and bottom['recordSize']==96
+            assert bottom['fields']==dict(state=0,allCalls=4,accountCalls=8,validHdc=12,clipType=16,destRect=20,sourceRect=36,clipRect=52,marginX=68,marginY=72,bottomCenterRect=76,bottomCenterVisible=92)
+            p.EXPECTED_SHA=bottom['candidateSHA256']
 targets={'TFMGroupBox':(0x76a5e8,536),'TNotebook':(0x26ab6c,556),'TPage':(0x26a950,532)}
 dpi=p.bind(p.user,'GetDpiForWindow',p.W.UINT,[p.W.HWND])
 context=p.bind(p.user,'SetThreadDpiAwarenessContext',C.c_void_p,[C.c_void_p])
@@ -63,6 +71,16 @@ try:
             result[h['name']]={'all':probe.u32(p.BASE+h['allCounterRva']),('skipped'if edge_mode else 'account'):probe.u32(p.BASE+scoped)}
         return result
     before=counters()
+    bottom_record=None
+    if bottom_mode:
+        assert 0<=bottom['recordRva']<=probe.image_size-96
+        assert probe.read(p.BASE+bottom['siteRva'],5).hex()==bottom['siteHex']
+        at=p.BASE+bottom['recordRva'];first=probe.u32(at);data=probe.read(at,96);last_state=probe.u32(at)
+        values=struct.unpack('<24I',data)
+        bottom_record=dict(state=last_state,allCalls=values[1],accountCalls=values[2],stable=first==last_state==values[0])
+        if bottom_record['stable']and last_state==2:
+            bottom_record.update(validHdc=values[3],clipType=values[4],marginX=values[17],marginY=values[18],bottomCenterVisible=bool(values[23]))
+            for name,offset in [('destRect',20),('sourceRect',36),('clipRect',52),('bottomCenterRect',76)]:bottom_record[name]=list(struct.unpack_from('<4i',data,offset))
     @p.CALLBACK
     def each(hwnd,_):
         global seen
@@ -129,7 +147,7 @@ try:
     assert probe.process_stamp()==probe.created
     after=counters()
     report=dict(pid=probe.pid,softwareSHA256=p.EXPECTED_SHA,readOnly=True,noTextNoAccountData=True,
-                numericBytes=probe.bytes_read,mainWindowDpi=main_dpi,settings=roots,rows=rows,errors=errors,countersBefore=before,countersAfter=after,
+                numericBytes=probe.bytes_read,mainWindowDpi=main_dpi,settings=roots,rows=rows,errors=errors,countersBefore=before,countersAfter=after,bottomRecord=bottom_record,
                 limitation='Native boundaries and drawing flags do not identify which painter produced a visible line.')
     dest=root/('account-lines-'+time.strftime('%Y%m%d-%H%M%S')+'.json')
     with dest.open('x',encoding='utf8')as output:json.dump(report,output,indent=2)
@@ -137,7 +155,7 @@ try:
                           numericBytes=probe.bytes_read,mainWindowDpi=main_dpi,settings=roots,
                           accountGroups=[x for x in rows if x.get('fields',{}).get('parentAccountFrame')],
                           visibleNotebooks=[x['window']for x in rows if x['window']['windowClass']=='TNotebook'and x['window']['visible']],
-                          countersBefore=before,countersAfter=after,errors=errors)))
+                          countersBefore=before,countersAfter=after,bottomRecord=bottom_record,errors=errors)))
 finally:
     if old_context:context(old_context)
     p.close_handle(probe.handle)
