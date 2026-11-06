@@ -45,7 +45,9 @@ function mapPixel(name,im,x,y,r,g,b){
 function patch(source,dest,originalPath){
  if(!originalPath||path.resolve(source)===path.resolve(dest))throw Error('Usage: INPUT OUTPUT ORIGINAL_EXE (distinct paths)');
  const before=fs.readFileSync(source),out=Buffer.from(before),original=fs.readFileSync(originalPath);
- if(sha(original)!=='54da7a968ad8a12bf80978269edfc57f520af9f19a18e5b78bf48742983dd4df')throw Error('Unsupported original Foxmail build');
+ // 587 is admitted only to this named PNG-resource transform. Native code is
+ // checked unchanged below; no 563 instruction addresses are reused here.
+ if(!['54da7a968ad8a12bf80978269edfc57f520af9f19a18e5b78bf48742983dd4df','f208b5c29816d1a5ca5859edbaf1b5e83f2c8e9cab2cfe0c3fdfdd4566d5b399'].includes(sha(original)))throw Error('Unsupported original Foxmail build');
  const current=readResources(out),originalResources=readResources(original).resources,report=[],undo=[];
  for(const r of current.resources.filter(r=>r.type===10&&selected.test(r.name))){
   const orig=originalResources.find(x=>x.type===r.type&&x.name===r.name&&x.lang===r.lang);
