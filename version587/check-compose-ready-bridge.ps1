@@ -57,7 +57,3 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId $InstanceId -Mode Prepare
   } finally {Pop-Location}
  } finally {foreach($key in $previous.Keys){[Environment]::SetEnvironmentVariable($key,$previous[$key],'Process')}}
 }
-
-
-
-

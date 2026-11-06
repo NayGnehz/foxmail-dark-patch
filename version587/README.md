@@ -111,3 +111,17 @@ DPI awareness 均为 1。用户已确认回退后文字清晰。未改注册表�
 候选已安装到Downloads副本，两轮重启各实际命中1次且主窗DPI120，用户均确认
 没有白线。第二轮采样为后台，用户直接切回后确认；微信截图触发尚未独立复测。
 详细hash、回退基线及其他未解决问题见 `../docs/diagnosis-astra-20261106.md`。
+
+## 写信、回复、转发首帧（2026-11-06 20:26）
+
+当前已安装并按用户场景验收：EXE `62faa3d8…bbb5e52c`、helper `0e471e40…a135c70`。
+连续写信无白闪、黑闪或按钮抖动；用户手动重开后回复、转发及Alt+A均正常，
+没有白线。最终14次就绪释放、0次超时及失败，DPI120。2.0、3.0封存保留。
+
+`compose-ready-source.cjs` 生成compose专用异步显示门；
+`compose-ready-bridge.cjs` 在主frame原LoadEnd完成后发送固定owner通知；
+`compose-ready-package.cjs` 汇总源码/隔离测试/产物校验。
+`install-compose-ready.ps1` 安装或`-Rollback`恢复4ca/29ef；`-Preflight`只核对。
+`compose-ready-state.py` 一次性读取固定数字计数，`compose-state-trace.py --ready`
+采集有界原生事件。完整证据及就绪条件的限制见
+`../docs/compose-first-frame-20261106.md`。账号页竖线等其他遗留项尚未处理。

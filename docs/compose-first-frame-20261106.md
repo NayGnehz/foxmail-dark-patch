@@ -190,3 +190,10 @@ token、八槽上限、异常及DWM失败重试。bridge异常展开未单独测
 一致，计数armed/notified/readyReleased均5，timeoutReleased=0、active=0，
 setup/release/redraw/callback失败均0，DPI120。不能把进程变化直接归因于崩溃；
 已向用户确认是否主动重开，同时请求回复、转发及Alt+A白边回归。
+
+最终用户确认进程变化是手动重开，并完成回复、转发及刚开写信Alt+A回归，
+回复“都正常，也没有白线”。最终只读计数armed/notified/readyReleased均14，
+active=0、timeoutReleased=0、所有失败/异常计数0，两个窗口DPI120。
+因此本轮写信/回复/转发白闪及弹窗白线目标按实际场景验收完成，保留62fa/0e47。
+这不是所有可能时序的保证；账号页竖线、提醒窗及编辑纸面可读性仍属其他遗留项。
+2.0与3.0归档未覆盖，也未给当前成果擅自新增发布版本号。
