@@ -71,6 +71,16 @@ elif sys.argv[1]=='virtuals':
  for v in n.classes(sys.argv[2]):
   print(sys.argv[2],hex(v),'size',n.read(v-40))
   print(json.dumps([(hex(k),hex(n.read(v+k)))for k in range(0,0x70,4)]))
+elif sys.argv[1]=='slot':
+ slot=int(sys.argv[3],16);assert 0<=slot<=0x200 and slot%4==0
+ for v in n.classes(sys.argv[2]):print(sys.argv[2],hex(v),hex(slot),hex(n.read(v+slot)))
+elif sys.argv[1]=='refs-string':
+ for encoding in ['ascii','utf-16le']:
+  needle=sys.argv[2].encode(encoding)+b'\0'*(2 if encoding=='utf-16le'else 1);at=0
+  while True:
+   at=n.b.find(needle,at)
+   if at<0:break
+   address=n.va(at);print(encoding,hex(address),[hex(x)for x in n.refs(address)[:12]]);at+=len(needle)
 elif sys.argv[1]=='png-field':
  start=n.off(0x8c0000);end=n.off(0x8c9000);needle=bytes.fromhex(sys.argv[2]);at=start
  while True:

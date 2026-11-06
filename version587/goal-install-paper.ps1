@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param([switch]$Preflight,[switch]$Rollback,[string]$AppRoot='D:\Users\Public\Downloads\Foxmail')
 $ErrorActionPreference='Stop'
+if(!$Rollback){throw 'Rejected candidate: user reported white editor and unresponsive window on 2026-11-06. Forward installation is disabled; rollback remains available.'}
 $project=Split-Path $PSScriptRoot -Parent
 $context=& (Join-Path $project 'Invoke-FoxmailPortable.ps1') -Action Resolve -InstanceId version587-20261105
 Import-Module (Join-Path $context.environmentRoot 'bin\PortableCache.psm1')
