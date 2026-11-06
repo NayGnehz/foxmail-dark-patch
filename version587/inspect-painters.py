@@ -81,6 +81,18 @@ elif sys.argv[1]=='refs-string':
    at=n.b.find(needle,at)
    if at<0:break
    address=n.va(at);print(encoding,hex(address),[hex(x)for x in n.refs(address)[:12]]);at+=len(needle)
+elif sys.argv[1]=='calls-to':
+ target=int(sys.argv[2],16);hits=[]
+ for name,rva,raw,size in n.sections:
+  if name!='CODE':continue
+  at=raw
+  while True:
+   at=n.b.find(b'\xe8',at,raw+size-4)
+   if at<0:break
+   address=n.va(at)
+   if address+5+struct.unpack_from('<i',n.b,at+1)[0]==target:hits.append(hex(address))
+   at+=1
+ print(json.dumps({'target':hex(target),'calls':hits}))
 elif sys.argv[1]=='png-field':
  start=n.off(0x8c0000);end=n.off(0x8c9000);needle=bytes.fromhex(sys.argv[2]);at=start
  while True:
