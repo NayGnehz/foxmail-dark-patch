@@ -3,7 +3,10 @@ import ctypes as C,json,sys,os,hashlib,time
 from ctypes import wintypes as W
 from pathlib import Path
 pid=int(sys.argv[1]);exe=Path(r'D:\Users\Public\Downloads\Foxmail\Foxmail深色.exe')
-assert hashlib.sha256(exe.read_bytes()).hexdigest()=='7fca5528dd9d54956d929dc733ba60b049c0db6ded16f226f0a3821376d4a65e'
+assert hashlib.sha256(exe.read_bytes()).hexdigest() in {
+ '7fca5528dd9d54956d929dc733ba60b049c0db6ded16f226f0a3821376d4a65e',
+ 'ce79d169ad6f908a4607ccc160efb17ce21b6afbcb9b8d1018c17331fff06c4a',
+ 'ad8b4a7eb7589e19345a710e01abe64ae537c1fbe545568105eeb6de1f17cac9'}
 u=C.WinDLL('user32',use_last_error=True);k=C.WinDLL('kernel32',use_last_error=True);g=C.WinDLL('gdi32')
 def bind(d,n,r,a):f=getattr(d,n);f.restype=r;f.argtypes=a;return f
 cb=C.WINFUNCTYPE(W.BOOL,W.HWND,W.LPARAM)
