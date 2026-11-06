@@ -18,8 +18,11 @@ candidate='--ncactivate' in sys.argv[1:]
 if candidate:sys.argv.remove('--ncactivate')
 presize='--presize' in sys.argv[1:]
 if presize:sys.argv.remove('--presize')
-assert not(candidate and presize),'Select only one exact candidate'
-p.EXPECTED_SHA=('252f62e085fdbaf161286c81ea459c110021b1eef6db4b2e5ab9398c2792f930' if presize else
+ready='--ready' in sys.argv[1:]
+if ready:sys.argv.remove('--ready')
+assert sum((candidate,presize,ready))<=1,'Select only one exact candidate'
+p.EXPECTED_SHA=('62faa3d801b1fcf8726a5b29f9636b8cc6e0fbec96e215ff7c856be6bbb5e52c' if ready else
+                '252f62e085fdbaf161286c81ea459c110021b1eef6db4b2e5ab9398c2792f930' if presize else
                 '4ca3440e7da018de28d3b920f93ba38af3f8500d1a767a7c091430577b6853c3' if candidate else
                 'f8f4732d8fd74411c6bed7306041d02cbdcb4bad604eb3dc265b4fa6f7d03f82')
 p.ATOMS=tuple(x['newRVA']for x in maps['atoms'])

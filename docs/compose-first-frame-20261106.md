@@ -151,3 +151,42 @@ SetBounds，保留Left/Top及原Show。既有主窗/弹窗白边桩、其他原�
 下一方向转为编辑器就绪信号与显示释放的异步衔接，不能再通过任意延时、窗口
 生命周期双缓冲或单次不闪判定成功。用户提出浅色原皮肤可能也有相同初始化
 过渡、只是白底上不明显；这是合理推测，尚未做原皮肤对照，不写成事实。
+
+## 就绪后显示候选
+
+20:21已安装候选EXE
+`62faa3d801b1fcf8726a5b29f9636b8cc6e0fbec96e215ff7c856be6bbb5e52c`，
+辅助DLL为`0e471e40cb64e5acf13d22a129849110b0ad2d21d7d4c7110036892aaa135c70`。
+回退是4ca EXE及29ef helper；未叠加已撤回的预布局试验。
+
+`compose-ready-source.cjs` 从保留FxColdRun的精确基线源码生成新helper，五处
+变换可逆还原原始源码hash。只有compose成功取得显示门时启用独立异步槽；
+原调用及同步重绘成功返回后接管cloak，最多八个窗口互不借用通知。
+原主窗口、设置、打印及托盘恢复路径仍同步处理。异常未接管时由原finally释放。
+
+`compose-ready-bridge.cjs` 包装主frame、非about:blank的原LoadEnd调用点
+B842FC。调用前固定host/root/owner/message，原回调返回后复核四元组再发
+异步通知；回调可能销毁对象，返回后不再解引用对象。接收方验证当前owner、
+加载字段及四层渲染窗口的可见性/几何，再发一条UI消息，于下一消息边界重绘
+并释放cloak。LoadEnd及窗口齐全仍不等于像素呈现确认，效果必须实际验收。
+
+fresh入口必须等本owner通知；入口已为1的加载字段只是曾加载过的生命周期
+latch，不能证明复用窗口新导航完成。关闭、隐藏、最小化或销毁会取消等待。
+40ms UI计时器重查已就绪窗口，1500ms阈值负责失败时放行；Windows计时器
+依赖正常消息循环，不能宣称为墙钟时间的硬上限。DWM释放失败保留owner待重试。
+[WM_TIMER说明](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-timer)
+
+必要隔离验证已通过：bridge实际机器码4352例、原生故障注入385项、实际DLL
+310项，包括真实合成对象/VMT/atom读取、renderer链、关闭/销毁、重入、线程与
+token、八槽上限、异常及DWM失败重试。bridge异常展开未单独测试；原生helper
+异常跨模块测试通过。构建中纠正过atom RVA误减基址，并补了相同HWND复用时
+拒绝新owner的用例。安装汇总绑定26个源码、报告和产物hash，预检及数字工具
+自检通过。安装后首次读数DPI120、各就绪计数为0；两次开窗实际结果待确认。
+
+第一轮实际反馈为“两次都正常，没有闪烁或抖动”，按提示关闭空白写信窗。
+记录`compose-state-20261106-202255.json`中可见三次show，首次两次cloak均延续
+到显示后约194/246ms才首次采到解除；这些仍是异步事件/20Hz观测边界。
+随后原PID5876已结束，新PID24924在20:23由Explorer启动。新进程精确软件hash
+一致，计数armed/notified/readyReleased均5，timeoutReleased=0、active=0，
+setup/release/redraw/callback失败均0，DPI120。不能把进程变化直接归因于崩溃；
+已向用户确认是否主动重开，同时请求回复、转发及Alt+A白边回归。
