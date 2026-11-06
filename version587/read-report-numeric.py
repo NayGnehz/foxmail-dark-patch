@@ -1,10 +1,11 @@
 """Read only one user-identified minidump's exception and module metadata.
 Never reads memory/thread/stack streams, context registers, annotations or logs.
 """
-import json,os,struct
+import json,os,struct,sys
 from pathlib import Path
 
-REPORT='00000000-0000-0000-0000-000000000000'
+REPORT=sys.argv[1]if len(sys.argv)>1 else'00000000-0000-0000-0000-000000000000'
+assert REPORT in ['00000000-0000-0000-0000-000000000000','00000000-0000-0000-0000-000000000000']
 path=Path(r'D:\Users\Public\Downloads\Foxmail\Global\Bugly\reports')/(REPORT+'.dmp')
 size=path.stat().st_size
 assert 32<=size<=128*1024*1024

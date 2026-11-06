@@ -1,7 +1,8 @@
 """Selected numeric x86 exception registers only; never stack/heap contents."""
-import json,os,struct
+import json,os,struct,sys
 from pathlib import Path
-report='00000000-0000-0000-0000-000000000000'
+report=sys.argv[1]if len(sys.argv)>1 else'00000000-0000-0000-0000-000000000000'
+assert report in ['00000000-0000-0000-0000-000000000000','00000000-0000-0000-0000-000000000000']
 path=Path(r'D:\Users\Public\Downloads\Foxmail\Global\Bugly\reports')/(report+'.dmp')
 size=path.stat().st_size;assert 32<=size<=128*1024*1024
 count=0

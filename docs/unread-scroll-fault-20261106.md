@@ -44,4 +44,23 @@ S_FALSE，输出BSTR在966307..966310已置空，局部字符串由原finally清
 [IAccessible.get_accName返回语义](https://learn.microsoft.com/en-us/windows/win32/api/oleacc/nf-oleacc-iaccessible-get_accname)
 
 这属于已证崩溃点的止崩防护，不等同于修复节点生命周期。底边PNG的RGBA/索引色
-差异已保留在账号页文档中，尚未为底边生成或安装修改。
+差异已保留在账号页文档中；这是当时状态，底边后续已按该文档修复并通过验收。
+
+## 后续：疑似关闭写信的不同故障
+
+用户另提供错误报告`00000000-0000-0000-0000-000000000000`，称“应该是关闭写信窗口”。
+当时为233e EXE/0e47 helper/19e7统一灰文字模板。限定读取3822字节异常/模块元数据，
+得到C0000005、EIP0、read0；再读取194字节目录及指定x86寄存器，EAX0、EBP0218D9E0、
+ESP0218D9CC。仅取保存ESP处一个4字节潜在返回地址653BEA，位于Foxmail主模块。
+原版静态653BE8为`call dword ptr [ecx]`，属于VCL窗口方法thunk。
+这与之前966374/MSAA get_accName故障不同，不能合并归因。
+
+没有扫描栈/堆、读取邮件缓冲或上传报告。数字证据保存在登记缓存version587-fault，
+入口`read-report-numeric.py`、`read-report-registers.py`仅白名单允许这两个用户报告UUID；
+`read-report-close-return.py`固定EIP/ESP和UUID，只取单个DWORD。
+
+已先撤回19e7文字试验到dd712。源码窄审0e47 helper的WM_NCDESTROY/timer/owner token
+路径，未发现可直接解释此空调用的明确缺陷；合成own-window测试不证明VCL方法thunk
+释放顺序。没有安装推测性的native或MSAA补丁。
+随后用户要求的多色/光标候选c3a898安装，用户确认写信及回复/转发打开关闭正常；
+这不等于已定位或修复偶发关闭故障。颜色细节见`compose-screen-ink-20261106.md`。
