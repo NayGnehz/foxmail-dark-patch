@@ -15,7 +15,9 @@ exec(compile(code,str(source),'exec'),p.__dict__)
 p.EXPECTED_SHA='62faa3d801b1fcf8726a5b29f9636b8cc6e0fbec96e215ff7c856be6bbb5e52c'
 p.ATOMS=tuple(x['newRVA']for x in mapping['atoms'])
 counter=None
-edge_mode='--edge' in sys.argv[1:]
+inset_mode='--inset' in sys.argv[1:]
+edge_mode='--edge' in sys.argv[1:]or inset_mode
+assert not(inset_mode and '--edge' in sys.argv[1:])
 assert not(edge_mode and '--counter' in sys.argv[1:])
 if '--counter' in sys.argv[1:]:
     sys.argv.remove('--counter')
@@ -25,12 +27,17 @@ if '--counter' in sys.argv[1:]:
     p.EXPECTED_SHA=counter['candidateSHA256']
     assert [h['slotRva']for h in counter['hooks']]==[0x76a6b0,0x76a6bc,0x76a6c0,0x76a6c4]
 if edge_mode:
-    sys.argv.remove('--edge')
+    sys.argv.remove('--inset'if inset_mode else '--edge')
     counter=json.loads((root.parent/'version587-account-edge-calls/validation.json').read_text())
     assert counter['baselineSHA256']==p.EXPECTED_SHA
     assert counter['candidateSHA256']=='1c38639672b9ca1e5de77db307d604d7ac89ad1246c8ed8e44a88bb785ce6913'
     p.EXPECTED_SHA=counter['candidateSHA256']
     assert [h['siteRva']for h in counter['hooks']]==[0x47abc4,0x47acfe,0x47ad38]
+    if inset_mode:
+        layout=json.loads((root.parent/'version587-account-right-inset/validation.json').read_text())
+        assert layout['baselineSHA256']==p.EXPECTED_SHA and layout['candidateSHA256']=='540cf174a53e319529605b0cb3e171550783a6fe6455d29d16e5bc410f6d1f33'
+        assert layout['changedBytes']==1 and layout['parsedDfmOnlyWidthChanged']and layout['allOtherBytesUnchanged']
+        p.EXPECTED_SHA=layout['candidateSHA256']
 targets={'TFMGroupBox':(0x76a5e8,536),'TNotebook':(0x26ab6c,556),'TPage':(0x26a950,532)}
 dpi=p.bind(p.user,'GetDpiForWindow',p.W.UINT,[p.W.HWND])
 context=p.bind(p.user,'SetThreadDpiAwarenessContext',C.c_void_p,[C.c_void_p])
@@ -129,6 +136,7 @@ try:
     print(json.dumps(dict(saved=str(dest),pid=probe.pid,softwareSHA256=p.EXPECTED_SHA,readOnly=True,
                           numericBytes=probe.bytes_read,mainWindowDpi=main_dpi,settings=roots,
                           accountGroups=[x for x in rows if x.get('fields',{}).get('parentAccountFrame')],
+                          visibleNotebooks=[x['window']for x in rows if x['window']['windowClass']=='TNotebook'and x['window']['visible']],
                           countersBefore=before,countersAfter=after,errors=errors)))
 finally:
     if old_context:context(old_context)
