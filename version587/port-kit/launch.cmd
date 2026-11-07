@@ -23,11 +23,6 @@ if /i "%~1"=="restore" (
 goto usage
 
 :ready
-if not exist "%~dp0Foxmail.exe" (
-    echo Put this CMD next to Foxmail.exe and run it again.
-    set "foxmail_patch_status=2"
-    goto finish
-)
 set "foxmail_patch_ps=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 if not exist "%foxmail_patch_ps%" goto no_powershell
 "%SystemRoot%\System32\more.com" +__FOXMAIL_COMMAND_LINE__ "%FOXMAIL_PATCH_SELF%" | "%foxmail_patch_ps%" -NoLogo -NoProfile -NonInteractive -Command -

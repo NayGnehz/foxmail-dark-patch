@@ -150,7 +150,28 @@ if ($originalLength -lt 64 -or $exeLength -lt $originalLength -or $exeLength -gt
 $root = Get-PlainPath $AppRoot
 if (![IO.Directory]::Exists($root)) { throw 'AppRoot must be the Foxmail software folder' }
 $exe = Get-PlainPath (Join-Path $root 'Foxmail.exe')
-if (![IO.File]::Exists($exe)) { throw 'AppRoot must contain Foxmail.exe' }
+$paths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach ($asset in $manifest.assets) {
+    $relative = [string]$asset.relative
+    if ($relative -notmatch '^7\.2\.25\.587/(?:PngImages|Skin|Template)/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.(?:png|html|css)$' -or
+        $relative -match '(?:^|/)\.{1,2}(?:/|$)|[.](?:/|$)' -or !$paths.Add($relative) -or
+        $asset.sha256 -notmatch $hashPattern -or
+        ($null -ne $asset.originalSHA256 -and $asset.originalSHA256 -notmatch $hashPattern)) {
+        throw ('Invalid asset manifest entry ' + $relative)
+    }
+    if ((Read-Integer $asset.length 'asset length') -gt [int]::MaxValue) {
+        throw ('Asset exceeds the supported length ' + $relative)
+    }
+}
+
+if ($Operation) {
+    $backupInfo = Get-PatchBackup $root $manifest.originalExecutableSHA256
+    if ($backupInfo.version -or $Operation -eq 'restore') {
+        Invoke-FoxmailInstall -Mode $Operation -Root $root -Manifest $manifest -BackupVersion $backupInfo.version
+        return
+    }
+}
+if (![IO.File]::Exists($exe)) { throw 'Put this CMD next to Foxmail.exe or in its software folder with a verified original backup' }
 $layout = Get-ExecutableLayout $exe
 $fileVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe).FileVersion
 $versionMatch = [regex]::Match([string]$fileVersion, '(?<![\d.])\d+\.\d+\.\d+\.\d+(?![\d.])')
@@ -164,19 +185,9 @@ $length = (Get-Item -LiteralPath $exe).Length
 $exeMatches = $layout.architecture -eq 'x86' -and $layout.format -eq 'PE32' -and
     $length -eq $originalLength -and $exeHash -eq $manifest.originalExecutableSHA256
 
-$paths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 $assetRows = @(
     foreach ($asset in $manifest.assets) {
-        $relative = [string]$asset.relative
-        if ($relative -notmatch '^7\.2\.25\.587/(?:PngImages|Skin|Template)/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.(?:png|html|css)$' -or
-            $relative -match '(?:^|/)\.{1,2}(?:/|$)|[.](?:/|$)' -or !$paths.Add($relative) -or
-            $asset.sha256 -notmatch $hashPattern -or
-            ($null -ne $asset.originalSHA256 -and $asset.originalSHA256 -notmatch $hashPattern)) {
-            throw ('Invalid asset manifest entry ' + $relative)
-        }
-        $assetLength = Read-Integer $asset.length 'asset length'
-        if ($assetLength -gt [int]::MaxValue) { throw ('Asset exceeds the supported length ' + $relative) }
-        $targetRelative = $VersionFolder + $relative.Substring($baseVersion.Length)
+        $targetRelative = $VersionFolder + $asset.relative.Substring($baseVersion.Length)
         $target = Get-PlainPath (Join-Path $root $targetRelative)
         $observedHash = $null
         $status = 'missing'
@@ -217,7 +228,7 @@ $report = [ordered]@{
     generated = $false
     outputDirectory = $null
 }
-function Get-FoxmailPatchFiles {
+function Get-FoxmailPatchFiles([string]$ExecutableName = ('Foxmail' + [char]0x6df1 + [char]0x8272 + '.exe')) {
     $delta = Read-Json (Join-Path $kit $selected.patch)
     if ($null -eq $delta.edits -or $delta.append -isnot [string]) { throw 'Invalid executable delta' }
     $source = Read-CheckedBytes $exe $originalLength $manifest.originalExecutableSHA256
@@ -243,9 +254,8 @@ function Get-FoxmailPatchFiles {
         $end = $offset + $count
     }
     if ((Get-Sha256 $patched) -ne $selected.exeSHA256) { throw 'Patched executable SHA256 verification failed' }
-    $exeName = 'Foxmail' + [char]0x6df1 + [char]0x8272 + '.exe'
     @(
-        @{relative = $exeName; bytes = $patched; sha256 = $selected.exeSHA256}
+        @{relative = $ExecutableName; bytes = $patched; sha256 = $selected.exeSHA256}
         @{relative = 'FoxmailRevealGate.dll'; bytes = (Read-CheckedBytes (Join-Path $kit $selected.helper) $helperLength $selected.helperSHA256); sha256 = $selected.helperSHA256}
         foreach ($asset in $manifest.assets) {
             $payload = Join-Path (Join-Path $kit 'payload') $asset.relative
@@ -255,7 +265,7 @@ function Get-FoxmailPatchFiles {
 }
 
 if ($Operation) {
-    Invoke-FoxmailInstall -Mode $Operation -Root $root -OriginalExe $exe -Manifest $manifest -Report $report
+    Invoke-FoxmailInstall -Mode $Operation -Root $root -Manifest $manifest -Report $report -BackupVersion 0
     return
 }
 if (!$PSBoundParameters.ContainsKey('OutputDirectory') -or !$report.canGenerate) {
