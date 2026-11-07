@@ -19,3 +19,9 @@
 正式1.0 **修改包**（不是完整Foxmail安装包）现位于同一总根的 `_releases/foxmail/1.0`；项目 `restore-release-template.ps1` 从共享总根相对定位它，恢复目标须显式指定。运行中的外部Foxmail和邮件数据保持原位。候选/阶段产物归 `_cache/projects/foxmail/cleanup-01a1aba4/temp`；参见 `Invoke-FoxmailPipeline.ps1`（沿用canonical锁/lease）和 `foxmail-paths.cjs`。
 
 原生/桥接/暂存入口的路径调整没有重跑业务验证；缓存内既有JSON是原测试结果，部分记录包含路径调整前源码hash。`print-candidate/review.cjs` 仍保留源hash校验，因此旧报告与新入口hash不同时会失败，须在未来正常研究验证时生成新证据，不能把迁移视为新验证通过。`compose-initial/verify-startup-background.cjs` 还需要旧Playwright/完整编辑器测试资源，固定B只提供本轮已明确的compose模板，不补建浏览器测试闭包。
+
+整套深色版的离线移植包由 [port-kit](version587/port-kit/README.txt) 维护。包内提供 5.0 封存和已部署试用两种 587 配置。预检会逐项比较新版的官方 EXE 和 39 个静态资源，命中已验证配置后才会生成独立覆盖目录。
+
+```powershell
+.\Invoke-FoxmailPipeline.ps1 -Script version587\port-kit\build.py -Tool python -InstanceId version587-20261105 -ScriptArguments @('--original','D:\Path\To\Foxmail.exe')
+```
