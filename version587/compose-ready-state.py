@@ -2,15 +2,20 @@
 import ctypes as C,hashlib,json,os,re,struct,sys,time,types
 from pathlib import Path
 
-EXE_SHA='62faa3d801b1fcf8726a5b29f9636b8cc6e0fbec96e215ff7c856be6bbb5e52c'
-HELPER_SHA='0e471e40cb64e5acf13d22a129849110b0ad2d21d7d4c7110036892aaa135c70'
+args=sys.argv[1:]
+candidate=bool(args and args[0]=='--host-ownership')
+if candidate:args=args[1:]
+EXE_SHA=('24665d0450f6a7b5efc9cba26cfc05dc9d0c8a761d6a91a093853d2ea4688f9c' if candidate
+         else '62faa3d801b1fcf8726a5b29f9636b8cc6e0fbec96e215ff7c856be6bbb5e52c')
+HELPER_SHA=('1a42c70987f206fb09bd69cfbe88cf836ca318bf614dd0dfeea12a86dd3c4041' if candidate
+            else '0e471e40cb64e5acf13d22a129849110b0ad2d21d7d4c7110036892aaa135c70')
 FIELDS=('size','version','armed','active','notified','snapshotReady','readyReleased',
         'timeoutReleased','closed','released','releaseFailed','retired','setupFailed',
         'surfacePending','redrawFailed','callbackExceptions','posted','staleMessages')
 assert re.fullmatch('[a-f0-9]{64}',EXE_SHA)and re.fullmatch('[a-f0-9]{64}',HELPER_SHA)
 assert 3<=len(FIELDS)<=32 and FIELDS[:2]==('size','version')
 root=Path(os.environ['PORTABLE_INSTANCE_ROOT'])/'temp'
-stage=root/'version587-compose-ready'
+stage=root/('version587-compose-ready-check-host-ownership' if candidate else 'version587-compose-ready')
 mapping=json.loads((root/'version587-goal/canvas-map.json').read_text())
 source=Path(__file__).parent.parent/'secondary-windows/editor-canvas-readonly.py'
 code=source.read_text(encoding='utf8')
@@ -22,10 +27,9 @@ p=types.ModuleType('compose_ready_numeric');p.__file__=str(source)
 exec(compile(code,str(source),'exec'),p.__dict__)
 p.EXPECTED_SHA=EXE_SHA
 p.ATOMS=tuple(x['newRVA']for x in mapping['atoms'])
-checking=sys.argv[1:]==['--check']
-manifest=json.loads((stage/'validation.json').read_text())
-assert manifest['candidateSHA256']==EXE_SHA and manifest['helperSHA256']==HELPER_SHA
-helper=(Path(manifest['helper']) if checking else Path(p.EXPECTED_PATH).with_name('FoxmailRevealGate.dll'))
+checking=args==['--check']
+assert checking or len(args)==1 and args[0].isdigit()
+helper=(stage/'FoxmailRevealGate.dll' if checking else Path(p.EXPECTED_PATH).with_name('FoxmailRevealGate.dll'))
 blob=helper.read_bytes();assert hashlib.sha256(blob).hexdigest()==HELPER_SHA
 pe=struct.unpack_from('<I',blob,60)[0];op=pe+24
 assert blob[:2]==b'MZ' and blob[pe:pe+4]==b'PE\0\0'
@@ -58,10 +62,13 @@ image_size=struct.unpack_from('<I',blob,op+56)[0]
 assert 0<=stats_rva<=image_size-stats_size
 module_path=p.bind(p.psapi,'GetModuleFileNameExW',p.W.DWORD,[p.W.HANDLE,p.W.HMODULE,p.W.LPWSTR,p.W.DWORD])
 dpi=p.bind(p.user,'GetDpiForWindow',p.W.UINT,[p.W.HWND])
+iconic=p.bind(p.user,'IsIconic',p.W.BOOL,[p.W.HWND])
+foreground=p.bind(p.user,'GetForegroundWindow',p.W.HWND,[])
+dwm=C.WinDLL('dwmapi')
+window_attribute=p.bind(dwm,'DwmGetWindowAttribute',C.c_long,[p.W.HWND,p.W.DWORD,C.c_void_p,p.W.DWORD])
 if checking:
     print('Exact helper stats export/layout and native bindings verified; no target opened.');sys.exit(0)
-assert len(sys.argv)==2 and sys.argv[1].isdigit()
-probe=p.Snapshot(int(sys.argv[1]))
+probe=p.Snapshot(int(args[0]))
 try:
     probe.guard()
     modules=(C.c_void_p*512)();needed=p.W.DWORD()
@@ -86,7 +93,11 @@ try:
         if pid.value!=probe.pid:return True
         name=C.create_unicode_buffer(128)
         if p.class_name(hwnd,name,len(name))and name.value in ('TFoxMainFrm.UnicodeClass','TFoxComposeForm.UnicodeClass'):
-            try:rows.append(dict(window=probe.window(hwnd),dpi=dpi(hwnd)))
+            try:
+                cloaked=p.W.DWORD()
+                hr=window_attribute(hwnd,14,C.byref(cloaked),C.sizeof(cloaked))
+                rows.append(dict(window=probe.window(hwnd),dpi=dpi(hwnd),iconic=bool(iconic(hwnd)),
+                                 foreground=foreground()==hwnd,cloaked=cloaked.value if hr==0 else None))
             except RuntimeError:pass
         return True
     assert p.enum_windows(each,0)

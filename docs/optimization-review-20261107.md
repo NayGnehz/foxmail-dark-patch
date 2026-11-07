@@ -30,6 +30,20 @@
 & 'D:\Dev\_releases\foxmail\5.0\恢复5.0.ps1' -TargetRoot 'D:\Users\Public\Downloads\Foxmail' -VerifyOnly
 ```
 
-## 验收边界
+## 部署前的验收边界
 
 本轮验证限于静态软件文件和自建 Win32 窗口。新的 DLL 仅有隔离测试证据，真实 Foxmail 的启动、首次托盘恢复、120 DPI、写信/回复/转发、Alt+A 和关闭仍以 5.0 既有验收为基线。滚动故障、偶发关闭崩溃、来信提醒以及原生剪贴板/拖放仍缺本轮实测。编辑器每批 DOM 变化会重扫文本和重算高亮，暂时缺少长信场景的目标 CEF 测量。各 x86 桥仍独立校验地址、指令及调用约定。
+
+## Downloads 部署复核
+
+再次核对两个 DLL 的 PE32/x86、19 个导出名与序号、导入依赖、统计结构 `(72, 1)` 和候选的源码及夹具绑定。部署入口 `install-compose-host-ownership.ps1` 在登记 lease 内校验 5.0 清单、原版 EXE、当前 41 个具名文件和候选证据。只替换已校验 Downloads 深色副本的 `FoxmailRevealGate.dll`，以排它句柄核对前像和写入后的哈希，随后用 Normal 重开。候选仍单独标识，封存 5.0 可恢复。
+
+实装进程首次采样为 PID 30072。映射的模块路径与候选目标一致，深色 EXE 仍为 `24665d04`，辅助 DLL 为 `1a42c709`。主窗可见，DPI 120，DWM cloak 为 0。启动时异步写信计数均为 0。候选状态下的单 DLL 回退预检与封存包 `-VerifyOnly` 均通过。
+
+桌面工具未能取得 Foxmail 窗口控制。首次托盘恢复、连续空白写信及闪烁观察待交互验收。只读计数样本位于登记缓存 `version587-compose-ready-check-host-ownership/ready-state-*.json`。
+
+```powershell
+.\version587\install-compose-host-ownership.ps1 -Preflight
+.\version587\install-compose-host-ownership.ps1 -Rollback -Preflight
+.\version587\install-compose-host-ownership.ps1 -Rollback
+```
