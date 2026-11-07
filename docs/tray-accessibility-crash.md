@@ -41,3 +41,21 @@ $zig = & .\Invoke-FoxmailPortable.ps1 -Action Tool -Tool zig -InstanceId $instan
 
 `$originalExe` 指向官方 7.2.25.587 的 `Foxmail.exe`。构建读取通过的指令测试结果。
 候选包位于登记缓存的 `temp/version587-dark-port-kit-msaa`。旧 CMD 和封存 5.0 独立保留。
+
+## 本机沙盒实测入口
+
+将完整 587 软件的静态文件放入登记实例内既有的 `version587-guard-wsb-*` 测试目录。准备脚本核对
+原版 EXE、候选 CMD 和 CEF 运行库，并生成 `temp/Foxmail-Guard-Inbox-Test.wsb`。
+
+```powershell
+.\version587\msaa-tray-guard\prepare-sandbox.ps1 -SoftwareStage $softwareStage
+```
+
+Windows 沙盒启用后打开该文件。沙盒关闭网络和剪贴板共享，只读挂载软件和测试脚本。启动脚本在独立
+的访客目录安装候选，通过访客 IPv4 回环提供三封合成邮件。合成邮箱为 `guard@example.invalid`，
+用户名为 `guard`，密码为 `fixture-only`。手动新建 POP3 账号，收件端口用 `127.0.0.1:21110`，
+发件端口用 `127.0.0.1:21587`，关闭 SSL 和 STARTTLS。
+
+打开合成收件箱并收到三封邮件后，在沙盒控制台运行 `Measure-GuardTray`。按提示用主窗口关闭按钮
+藏到托盘，再点击托盘图标恢复。脚本核对同一候选进程和窗口的显隐，并在每次恢复后对收件箱列表进行
+定向 UI Automation 查询。只有三封合成主题全部匹配且进程存活时才继续。真实沙盒运行结果仍待记录。
