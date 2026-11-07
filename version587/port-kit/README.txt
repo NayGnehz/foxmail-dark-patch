@@ -1,5 +1,13 @@
 Foxmail 深色版离线移植包
 
+单文件 CMD 用法
+将 Foxmail-Dark-Patch.cmd 放到官方 Foxmail.exe 同级目录后双击。
+通过守卫时，在 Foxmail 软件目录旁生成 <目录名>-dark-overlay-5.0。
+CMD 需要 PowerShell 7，包内资源由它自动解包。
+命令行可用 Foxmail-Dark-Patch.cmd check 只读预检，或用 trial 生成当前部署的试用配置。
+apply 相当于双击时的 5.0 模式，供命令行调用。
+
+ZIP 用法
 先解压整个 ZIP。在 PowerShell 7 中进入解压目录。
 下面的 AppRoot 指向软件目录，其中应有官方 Foxmail.exe 和版本目录。
 

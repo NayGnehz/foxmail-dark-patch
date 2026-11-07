@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import tempfile
+from textwrap import wrap
 import zipfile
 
 
@@ -56,6 +57,27 @@ def delta(before, after):
     if restored[:len(before)] != before:
         raise ValueError("Delta could not be reversed to the exact original")
     return {"edits": edits, "append": base64.b64encode(after[len(before):]).decode("ascii")}
+
+
+def write_launcher(source, output, payload):
+    bootstrap = " ".join(line.strip() for line in (source / "launch-bootstrap.ps1").read_text(encoding="ascii").splitlines())
+    bootstrap = bootstrap.replace("__FOXMAIL_ARCHIVE_SHA__", sha(payload))
+    if '"' in bootstrap or "%" in bootstrap:
+        raise ValueError("Bootstrap must fit one literal CMD argument")
+    template = (source / "launch.cmd").read_text(encoding="ascii")
+    archive = "\n".join(wrap(base64.b64encode(payload).decode("ascii"), 76))
+    launcher = template.replace("__FOXMAIL_BOOTSTRAP__", bootstrap).replace("__FOXMAIL_ARCHIVE__", archive)
+    if max(map(len, launcher.splitlines())) > 7600:
+        raise ValueError("Launcher exceeds the Windows command-line budget")
+    data = launcher.replace("\n", "\r\n").encode("ascii")
+    with tempfile.NamedTemporaryFile(dir=output.parent, suffix=".partial", delete=False) as handle:
+        partial = Path(handle.name)
+    try:
+        partial.write_bytes(data)
+        partial.replace(output)
+    finally:
+        partial.unlink(missing_ok=True)
+    return sha(data)
 
 
 def main():
@@ -162,8 +184,11 @@ def main():
         partial.replace(output)
     finally:
         partial.unlink(missing_ok=True)
-    print(json.dumps({"package": str(output), "sha256": sha(output.read_bytes()), "entries": len(content),
-                      "assets": len(assets), "profiles": list(profiles)}))
+    package = output.read_bytes()
+    launcher = out / "Foxmail-Dark-Patch.cmd"
+    cmd_sha = write_launcher(source, launcher, package)
+    print(json.dumps({"package": str(output), "sha256": sha(package), "cmd": str(launcher), "cmdSHA256": cmd_sha,
+                      "entries": len(content), "assets": len(assets), "profiles": list(profiles)}))
 
 
 if __name__ == "__main__":
