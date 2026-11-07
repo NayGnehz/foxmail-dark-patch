@@ -1,6 +1,10 @@
 # Foxmail 7.2.25.587 适配记录
 
-最新采用状态（2026-11-06晚）：EXE233e7bdf/helper0e47；账号浅色竖线、右沿及
+当前采用版本为 2026-11-07 用户验收的 5.0。已装 EXE 24665d04，辅助 DLL 0e471e40，
+写信模板 c3a898dc，地址簿 Frame 405bf5f9，主窗 DPI 120。
+参见 [5.0 封存记录](archive-5.0.md)和 [搜索、地址簿最终验收](../docs/ui-followups-20261106.md)。
+
+阶段记录（2026-11-06晚）：EXE233e7bdf/helper0e47；账号浅色竖线、右沿及
 各设置页底边已由用户确认恢复。写信模板c3a898dc使用独立Custom Highlight绘制
 保留多色色相，黑字与caret在深色纸面清楚；用户确认颜色、光标及窗口关闭正常。
 详见`../docs/account-lines-20261106.md`、`../docs/compose-screen-ink-20261106.md`。
