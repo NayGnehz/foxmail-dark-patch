@@ -20,7 +20,7 @@
 
 原生/桥接/暂存入口的路径调整没有重跑业务验证；缓存内既有JSON是原测试结果，部分记录包含路径调整前源码hash。`print-candidate/review.cjs` 仍保留源hash校验，因此旧报告与新入口hash不同时会失败，须在未来正常研究验证时生成新证据，不能把迁移视为新验证通过。`compose-initial/verify-startup-background.cjs` 还需要旧Playwright/完整编辑器测试资源，固定B只提供本轮已明确的compose模板，不补建浏览器测试闭包。
 
-整套深色版的离线移植包由 [port-kit](version587/port-kit/README.txt) 维护。将构建生成的 `Foxmail-Dark-Patch.cmd` 放在 `Foxmail.exe` 同级即可执行，使用系统自带的 Windows PowerShell 5.1。双击默认使用 5.0 封存配置，`check` 只读预检，`trial` 使用已部署试用配置。入口逐项比较官方 EXE 和 39 个静态资源，命中已验证配置后才会生成独立覆盖目录。
+整套深色版的离线移植包由 [port-kit](version587/port-kit/README.txt) 维护。退出目标 Foxmail 后，将构建生成的 `Foxmail-Dark-Patch.cmd` 放在 `Foxmail.exe` 同级即可执行，使用系统自带的 Windows PowerShell 5.1。首次双击校验原版文件、写入 `原版备份` 再安装，下一次双击从备份恢复。`check` 只读预检，`trial` 安装试用配置，`restore` 显式恢复。ZIP 的 PowerShell 入口可另生成独立覆盖目录。
 
 ```powershell
 .\Invoke-FoxmailPipeline.ps1 -Script version587\port-kit\build.py -Tool python -InstanceId version587-20261105 -ScriptArguments @('--original','D:\Path\To\Foxmail.exe')

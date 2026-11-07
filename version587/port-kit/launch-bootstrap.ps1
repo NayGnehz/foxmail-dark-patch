@@ -45,14 +45,10 @@ try {
         if ($archive) { $archive.Dispose(); }
         $stream.Dispose();
     }
-    $profile = if ($env:FOXMAIL_PATCH_MODE -eq 'trial') { 'deployed-trial' } else { '5.0' };
-    $options = @{AppRoot = $appRoot; Profile = $profile; KitRoot = $stage};
-    if ($env:FOXMAIL_PATCH_MODE -ne 'check') {
-        $parent = [IO.Directory]::GetParent($appRoot);
-        if (!$parent) { throw 'Run this CMD in a Foxmail folder below the drive root'; }
-        $folder = [IO.Path]::GetFileName($appRoot) + '-dark-overlay-' + $profile;
-        $options.OutputDirectory = [IO.Path]::Combine($parent.FullName, $folder);
-    }
+    $mode = $env:FOXMAIL_PATCH_MODE;
+    $profile = if ($mode -eq 'trial') { 'deployed-trial' } else { '5.0' };
+    if ($mode -eq 'trial') { $mode = 'apply'; }
+    $options = @{AppRoot = $appRoot; Profile = $profile; KitRoot = $stage; Operation = $mode};
     $json = & $apply @options;
     $json | Write-Output;
     $report = $json | ConvertFrom-Json;

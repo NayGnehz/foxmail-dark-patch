@@ -1,11 +1,15 @@
 Foxmail 深色版离线移植包
 
 单文件 CMD 用法
-将 Foxmail-Dark-Patch.cmd 放到官方 Foxmail.exe 同级目录后双击。
-通过守卫时，在 Foxmail 软件目录旁生成 <目录名>-dark-overlay-5.0。
-CMD 使用 Windows 自带的 Windows PowerShell 5.1，内嵌资源自动解包。
-命令行可用 Foxmail-Dark-Patch.cmd check 只读预检，或用 trial 生成当前部署的试用配置。
-apply 相当于双击时的 5.0 模式，供命令行调用。
+从托盘完全退出目标 Foxmail。将 Foxmail-Dark-Patch.cmd 放到官方 Foxmail.exe 同级后双击。
+首次运行校验原版软件文件，将 39 个将被替换的文件备份到原版备份，再安装 5.0。
+安装后运行同目录的 Foxmail深色.exe。
+需要恢复时完全退出 Foxmail，再双击同一个 CMD。恢复完成后，运行原版 Foxmail.exe。
+安装中途失败时保留原版备份，再运行同一 CMD 即可回退。
+已恢复的备份会保留，后续安装前重新校验并复用。
+CMD 使用 Windows 自带的 Windows PowerShell 5.1。
+check 只读预检，apply 安装 5.0，trial 安装试用版，restore 显式恢复。
+没有本工具备份时，已手工修改的资源或已有的深色 EXE/DLL 会阻止首次安装。
 
 ZIP 用法
 先解压整个 ZIP。在 PowerShell 7 中进入解压目录。
@@ -29,6 +33,7 @@ canGenerate=true 时，可输出整套候选到尚不存在的独立目录
 新版只要指纹或静态资源前像不同，脚本便会列出阻塞项并停止生成。版本号相同也要核对哈希。
 应按报告取得新版的官方程序文件，重新映射原生代码和资源，再建立带哈希与测试证据的配置。
 
-输出是一套补丁覆盖文件，依赖相应版本已有的官方运行库。
+ZIP 脚本输出一套补丁覆盖文件，依赖相应版本已有的官方运行库。
 手动试用时，应将输出用于隔离的软件副本，另保留该副本的原始文件。试用出错时从原副本继续运行。
-脚本不复制整套软件，不覆盖 AppRoot，不启动 Foxmail，也不检查邮件、账户和个人设置。
+ZIP 脚本只生成独立覆盖目录。CMD 按清单安装或回退软件文件。
+两种入口都不启动 Foxmail，也不检查邮件、账户和个人设置。

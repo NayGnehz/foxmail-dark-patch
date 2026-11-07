@@ -1,16 +1,23 @@
 @echo off
 setlocal DisableDelayedExpansion
 set "FOXMAIL_PATCH_SELF=%~f0"
-set "FOXMAIL_PATCH_MODE=apply"
+set "FOXMAIL_PATCH_MODE=toggle"
 if not "%~2"=="" goto usage
 if "%~1"=="" goto ready
-if /i "%~1"=="apply" goto ready
+if /i "%~1"=="apply" (
+    set "FOXMAIL_PATCH_MODE=apply"
+    goto ready
+)
 if /i "%~1"=="check" (
     set "FOXMAIL_PATCH_MODE=check"
     goto ready
 )
 if /i "%~1"=="trial" (
     set "FOXMAIL_PATCH_MODE=trial"
+    goto ready
+)
+if /i "%~1"=="restore" (
+    set "FOXMAIL_PATCH_MODE=restore"
     goto ready
 )
 goto usage
@@ -33,7 +40,7 @@ set "foxmail_patch_status=2"
 goto finish
 
 :usage
-echo Usage: "%~nx0" [apply^|check^|trial]
+echo Usage: "%~nx0" [apply^|check^|trial^|restore]
 set "foxmail_patch_status=2"
 
 :finish

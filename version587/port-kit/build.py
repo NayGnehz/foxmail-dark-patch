@@ -66,7 +66,8 @@ def write_launcher(source, output, payload):
     requirement, _, apply = script.partition("\n")
     if requirement != "#requires -Version 5.1":
         raise ValueError("Unexpected PowerShell entry version requirement")
-    command = "& {\n$apply = {\n" + apply + "\n}\n" + bootstrap + "\n}\n\n"
+    install = (source / "install-in-place.ps1").read_text(encoding="ascii")
+    command = "& {\n" + install + "\n$apply = {\n" + apply + "\n}\n" + bootstrap + "\n}\n\n"
     template = (source / "launch.cmd").read_text(encoding="ascii")
     archive = "\n".join(wrap(base64.b64encode(payload).decode("ascii"), 76))
     prefix, marker, _ = template.replace("__FOXMAIL_ARCHIVE__", archive).partition("__FOXMAIL_COMMAND__")

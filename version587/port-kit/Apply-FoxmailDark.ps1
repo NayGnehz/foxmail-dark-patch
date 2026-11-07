@@ -5,7 +5,8 @@ param(
     [ValidatePattern('^\d+\.\d+\.\d+\.\d+$')][string]$VersionFolder,
     [ValidateNotNullOrEmpty()][string]$OutputDirectory,
     [ValidateSet('5.0', 'deployed-trial')][string]$Profile = '5.0',
-    [Parameter(DontShow)][string]$KitRoot = $PSScriptRoot
+    [Parameter(DontShow)][string]$KitRoot = $PSScriptRoot,
+    [Parameter(DontShow)][ValidateSet('toggle', 'apply', 'restore', 'check')][string]$Operation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -216,6 +217,47 @@ $report = [ordered]@{
     generated = $false
     outputDirectory = $null
 }
+function Get-FoxmailPatchFiles {
+    $delta = Read-Json (Join-Path $kit $selected.patch)
+    if ($null -eq $delta.edits -or $delta.append -isnot [string]) { throw 'Invalid executable delta' }
+    $source = Read-CheckedBytes $exe $originalLength $manifest.originalExecutableSHA256
+    $append = [Convert]::FromBase64String($delta.append)
+    if ($source.LongLength + $append.LongLength -ne $exeLength) { throw 'Unexpected executable delta length' }
+    $patched = [byte[]]::new([int]$exeLength)
+    [Array]::Copy($source, $patched, $source.Length)
+    [Array]::Copy($append, 0, $patched, $source.Length, $append.Length)
+    $end = 0L
+    foreach ($edit in $delta.edits) {
+        $offset = Read-Integer $edit.offset 'delta offset'
+        if ($edit.before -isnot [string] -or $edit.after -isnot [string] -or
+            $edit.before -notmatch '^(?:[0-9a-f]{2})+$' -or $edit.after -notmatch '^(?:[0-9a-f]{2})+$' -or
+            $edit.before.Length -ne $edit.after.Length) { throw 'Invalid executable edit bytes' }
+        $count = [int]($edit.before.Length / 2)
+        if ($offset -lt $end -or $offset -gt $originalLength - $count) {
+            throw 'Executable delta edits overlap or exceed the original image'
+        }
+        if ([BitConverter]::ToString($source, [int]$offset, $count).Replace('-', '') -ne $edit.before) {
+            throw ('Executable delta preimage mismatch at byte ' + $offset)
+        }
+        [Array]::Copy((Convert-Hex $edit.after), 0, $patched, [int]$offset, $count)
+        $end = $offset + $count
+    }
+    if ((Get-Sha256 $patched) -ne $selected.exeSHA256) { throw 'Patched executable SHA256 verification failed' }
+    $exeName = 'Foxmail' + [char]0x6df1 + [char]0x8272 + '.exe'
+    @(
+        @{relative = $exeName; bytes = $patched; sha256 = $selected.exeSHA256}
+        @{relative = 'FoxmailRevealGate.dll'; bytes = (Read-CheckedBytes (Join-Path $kit $selected.helper) $helperLength $selected.helperSHA256); sha256 = $selected.helperSHA256}
+        foreach ($asset in $manifest.assets) {
+            $payload = Join-Path (Join-Path $kit 'payload') $asset.relative
+            @{relative = $asset.relative; bytes = (Read-CheckedBytes $payload ([long]$asset.length) $asset.sha256); sha256 = $asset.sha256}
+        }
+    )
+}
+
+if ($Operation) {
+    Invoke-FoxmailInstall -Mode $Operation -Root $root -OriginalExe $exe -Manifest $manifest -Report $report
+    return
+}
 if (!$PSBoundParameters.ContainsKey('OutputDirectory') -or !$report.canGenerate) {
     $report | ConvertTo-Json -Depth 6
     return
@@ -232,40 +274,7 @@ $output = $output.TrimEnd('\', '/')
 $parent = [IO.Path]::GetDirectoryName($output)
 if (!$parent -or ![IO.Directory]::Exists($parent)) { throw 'The parent of OutputDirectory must already exist' }
 
-$delta = Read-Json (Join-Path $kit $selected.patch)
-if ($null -eq $delta.edits -or $delta.append -isnot [string]) { throw 'Invalid executable delta' }
-$source = Read-CheckedBytes $exe $originalLength $manifest.originalExecutableSHA256
-$append = [Convert]::FromBase64String($delta.append)
-if ($source.LongLength + $append.LongLength -ne $exeLength) { throw 'Unexpected executable delta length' }
-$patched = [byte[]]::new([int]$exeLength)
-[Array]::Copy($source, $patched, $source.Length)
-[Array]::Copy($append, 0, $patched, $source.Length, $append.Length)
-$end = 0L
-foreach ($edit in $delta.edits) {
-    $offset = Read-Integer $edit.offset 'delta offset'
-    if ($edit.before -isnot [string] -or $edit.after -isnot [string] -or
-        $edit.before -notmatch '^(?:[0-9a-f]{2})+$' -or $edit.after -notmatch '^(?:[0-9a-f]{2})+$' -or
-        $edit.before.Length -ne $edit.after.Length) { throw 'Invalid executable edit bytes' }
-    $count = [int]($edit.before.Length / 2)
-    if ($offset -lt $end -or $offset -gt $originalLength - $count) {
-        throw 'Executable delta edits overlap or exceed the original image'
-    }
-    if ([BitConverter]::ToString($source, [int]$offset, $count).Replace('-', '') -ne $edit.before) {
-        throw ('Executable delta preimage mismatch at byte ' + $offset)
-    }
-    [Array]::Copy((Convert-Hex $edit.after), 0, $patched, [int]$offset, $count)
-    $end = $offset + $count
-}
-if ((Get-Sha256 $patched) -ne $selected.exeSHA256) { throw 'Patched executable SHA256 verification failed' }
-$exeName = 'Foxmail' + [char]0x6df1 + [char]0x8272 + '.exe'
-$files = @(
-    @{relative = $exeName; bytes = $patched; sha256 = $selected.exeSHA256}
-    @{relative = 'FoxmailRevealGate.dll'; bytes = (Read-CheckedBytes (Join-Path $kit $selected.helper) $helperLength $selected.helperSHA256); sha256 = $selected.helperSHA256}
-    foreach ($asset in $manifest.assets) {
-        $payload = Join-Path (Join-Path $kit 'payload') $asset.relative
-        @{relative = $asset.relative; bytes = (Read-CheckedBytes $payload ([long]$asset.length) $asset.sha256); sha256 = $asset.sha256}
-    }
-)
+$files = @(Get-FoxmailPatchFiles)
 
 # Publish one directory after every output file is written and verified.
 $staging = Get-PlainPath (Join-Path $parent ('.foxmail-patch-' + [Guid]::NewGuid().ToString('N')))
