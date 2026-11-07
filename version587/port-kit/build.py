@@ -20,6 +20,7 @@ EXE = "Foxmail深色.exe"
 HELPER = "FoxmailRevealGate.dll"
 TRIAL_EXE_SHA = "1cc82aae50abc671d4c70f5afc596f590035c639a7946817a3a97cd9fa1f00ab"
 TRIAL_DLL_SHA = "1a42c70987f206fb09bd69cfbe88cf836ca318bf614dd0dfeea12a86dd3c4041"
+TRAY_GUARD_PROFILE = "5.0-msaa"
 
 
 def sha(data):
@@ -59,9 +60,10 @@ def delta(before, after):
     return {"edits": edits, "append": base64.b64encode(after[len(before):]).decode("ascii")}
 
 
-def write_launcher(source, output, payload):
+def write_launcher(source, output, payload, default_profile):
     bootstrap = (source / "launch-bootstrap.ps1").read_text(encoding="ascii")
     bootstrap = bootstrap.replace("__FOXMAIL_ARCHIVE_SHA__", sha(payload))
+    bootstrap = bootstrap.replace("__FOXMAIL_DEFAULT_PROFILE__", default_profile)
     script = (source / "Apply-FoxmailDark.ps1").read_text(encoding="ascii")
     requirement, _, apply = script.partition("\n")
     if requirement != "#requires -Version 5.1":
@@ -85,9 +87,29 @@ def write_launcher(source, output, payload):
     return sha(data)
 
 
+def verified_tray_guard(temp, sealed_exe_sha):
+    stage = temp / "version587-msaa-tray-guard"
+    build = json.loads((stage / "build.json").read_text(encoding="utf-8"))
+    report = json.loads((stage / "abi-validation.json").read_text(encoding="utf-8-sig"))
+    exe = stage / "Foxmail.exe"
+    candidate_sha = build["candidateSHA256"]
+    if (build["baseSHA256"] != sealed_exe_sha or report["passed"] is not True
+            or report["candidateSHA256"] != candidate_sha
+            or report["inputs"].get(str(exe)) != candidate_sha
+            or report["imageBases"] < 2 or report["flagPatterns"] != 128
+            or report["scenarios"] < 1
+            or report["cases"] != report["imageBases"] * report["scenarios"] * report["flagPatterns"]):
+        raise ValueError("Expected passing emitted-instruction validation for the sealed 5.0 guard")
+    for name in ("build.json", "guard-fixture.h"):
+        artifact = stage / name
+        checked(artifact, report["inputs"][str(artifact)])
+    return exe, candidate_sha
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--original", required=True, type=Path)
+    parser.add_argument("--msaa-tray-guard", action="store_true")
     args = parser.parse_args()
     if args.original.name.lower() != "foxmail.exe":
         raise ValueError("Use the exact unmodified Foxmail.exe as --original")
@@ -155,6 +177,11 @@ def main():
         ("deployed-trial", temp / "version587-compose-polish" / EXE, TRIAL_EXE_SHA,
          temp / "version587-compose-ready-check-host-ownership" / HELPER, TRIAL_DLL_SHA),
     ]
+    default_profile = "5.0"
+    if args.msaa_tray_guard:
+        guarded_exe, guarded_sha = verified_tray_guard(temp, sealed_exe["sha256"])
+        default_profile = TRAY_GUARD_PROFILE
+        inputs.append((default_profile, guarded_exe, guarded_sha, payload / HELPER, sealed_helper["sha256"]))
     for name, executable, exe_sha, dll, helper_sha in inputs:
         target = checked(executable, exe_sha)
         helper = checked(dll, helper_sha)
@@ -173,7 +200,7 @@ def main():
     source = Path(__file__).parent
     content["Apply-FoxmailDark.ps1"] = (source / "Apply-FoxmailDark.ps1").read_bytes()
     content["README.txt"] = (source / "README.txt").read_bytes()
-    out = temp / "version587-dark-port-kit"
+    out = temp / ("version587-dark-port-kit-msaa" if args.msaa_tray_guard else "version587-dark-port-kit")
     out.mkdir(exist_ok=True)
     output = out / "Foxmail-Dark-Port-Kit.zip"
     with tempfile.NamedTemporaryFile(dir=out, suffix=".partial", delete=False) as handle:
@@ -191,7 +218,7 @@ def main():
         partial.unlink(missing_ok=True)
     package = output.read_bytes()
     launcher = out / "Foxmail-Dark-Patch.cmd"
-    cmd_sha = write_launcher(source, launcher, package)
+    cmd_sha = write_launcher(source, launcher, package, default_profile)
     print(json.dumps({"package": str(output), "sha256": sha(package), "cmd": str(launcher), "cmdSHA256": cmd_sha,
                       "entries": len(content), "assets": len(assets), "profiles": list(profiles)}))
 

@@ -10,6 +10,7 @@
 !*.cs
 !*.c
 !*.h
+!/version587/msaa-tray-guard/guard.S
 !*.css
 !SearchControls/**/*.png
 !ExternalSkinUpdate/**/*.png

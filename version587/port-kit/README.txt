@@ -10,6 +10,8 @@ Foxmail 深色版离线移植包
 新版也可恢复上一版 CMD 的备份并清理目录。旧备份未保存的原始时间戳需从更早的备份找回。
 CMD 使用 Windows 自带的 Windows PowerShell 5.1。
 check 只读预检，apply 安装 5.0，trial 安装试用版，restore 显式恢复。
+带托盘崩溃防护的 CMD 默认安装 5.0-msaa。上一版 CMD 的原版备份可直接恢复。
+从上一版切换时，先用同一 CMD 恢复原版，再双击一次安装。trial 仍选择原有写信试用版。
 没有本工具备份时，已手工修改的资源或已有的深色 EXE/DLL 会阻止首次安装。
 
 ZIP 用法

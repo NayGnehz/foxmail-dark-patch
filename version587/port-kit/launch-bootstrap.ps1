@@ -46,7 +46,7 @@ try {
         $stream.Dispose();
     }
     $mode = $env:FOXMAIL_PATCH_MODE;
-    $profile = if ($mode -eq 'trial') { 'deployed-trial' } else { '5.0' };
+    $profile = if ($mode -eq 'trial') { 'deployed-trial' } else { '__FOXMAIL_DEFAULT_PROFILE__' };
     if ($mode -eq 'trial') { $mode = 'apply'; }
     $options = @{AppRoot = $appRoot; Profile = $profile; KitRoot = $stage; Operation = $mode};
     $json = & $apply @options;

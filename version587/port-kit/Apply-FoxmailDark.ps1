@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$AppRoot,
     [ValidatePattern('^\d+\.\d+\.\d+\.\d+$')][string]$VersionFolder,
     [ValidateNotNullOrEmpty()][string]$OutputDirectory,
-    [ValidateSet('5.0', 'deployed-trial')][string]$Profile = '5.0',
+    [ValidateSet('5.0', '5.0-msaa', 'deployed-trial')][string]$Profile = '5.0',
     [Parameter(DontShow)][string]$KitRoot = $PSScriptRoot,
     [Parameter(DontShow)][ValidateSet('toggle', 'apply', 'restore', 'check')][string]$Operation
 )
