@@ -40,10 +40,28 @@
 
 实装进程首次采样为 PID 30072。映射的模块路径与候选目标一致，深色 EXE 仍为 `24665d04`，辅助 DLL 为 `1a42c709`。主窗可见，DPI 120，DWM cloak 为 0。启动时异步写信计数均为 0。候选状态下的单 DLL 回退预检与封存包 `-VerifyOnly` 均通过。
 
-桌面工具未能取得 Foxmail 窗口控制。首次托盘恢复、连续空白写信及闪烁观察待交互验收。只读计数样本位于登记缓存 `version587-compose-ready-check-host-ownership/ready-state-*.json`。
+用户手动完成托盘和空白写信验收并反馈“都正常”。同一 PID 复核得到 6 次接管、6 次 LoadEnd 通知、6 次就绪解幕，活动、超时及失败均为 0。用户同时指出两项原有问题，收件人和抄送文字偏黑，以及写信主窗出现前的短黑线。只读计数样本位于登记缓存 `version587-compose-ready-check-host-ownership/ready-state-*.json`。
 
 ```powershell
 .\version587\install-compose-host-ownership.ps1 -Preflight
 .\version587\install-compose-host-ownership.ps1 -Rollback -Preflight
 .\version587\install-compose-host-ownership.ps1 -Rollback
 ```
+
+## 写信收件人字色与短黑线
+
+- 写信 DFM 中 To、Cc 和 Bcc 走 `TFMZRichEdit`，主题走 `TFMEdit`。三个 RichEdit 的序列化字色会被原生字体应用方法覆盖。五个写信专属调用点保留原字体设置，然后在 `DefAttributes` 上设置 `#E6E6E6`。setter 只用 `CFM_COLOR / SCF_DEFAULT`，已解析收件人的标签可能有独立的绘制路径，须在真实窗口分开验收。
+- 用户两张对照图在按钮栏下沿都出现同一组 `#191919/#1B1B1B/#1E1E1E` 像素。真实数值跟踪中，独立无 owner 的 `FMCtrlShadowWnd` 矩形为 `[189,633,1177,637]`，宽度与图中横线一致，紧贴顶部 dock 底沿。它可见约 208 ms 后，主写信窗才首次采到解除 cloak。修复仅去掉 `TFoxComposeForm.FormCreate` 对本窗顶部 dock 的装饰阴影注册。Resize 和 Destroy 已有未注册跳过分支。两处修改在封存 EXE 上分别生成，再验证合成输出为两处差异的并集。
+- 五处字色调用实际发射的 x86 指令在两个基址通过 1,280 项 ABI 检查，覆盖默认属性缺失、寄存器、标志、栈与 LastError。字色及阴影补丁各自反向恢复与输入完全一致。
+- 合成 EXE `1cc82aae` 已装到 Downloads 并用 Normal 启动，初次 PID 22996，主窗 DPI 120、可见、cloak=0，实际加载 `1a42c709` helper。40 个配套软件文件在安装前及回退预检中均通过哈希核对。交互视觉结果单独记录。
+- 部署后同一进程已累计 5 次写信就绪解幕，活动、超时、设置失败和回调异常均为 0。之后的 60 秒数值跟踪未覆盖新的写信开启，因此这 5 次支持显示门健康复核，字色与黑线仍待视觉确认。
+
+```powershell
+.\Invoke-FoxmailPipeline.ps1 -Script version587\compose-recipient-contrast.cjs -InstanceId version587-20261105
+.\version587\check-compose-recipient-contrast.ps1
+.\Invoke-FoxmailPipeline.ps1 -Script version587\compose-polish.cjs -InstanceId version587-20261105
+.\version587\install-compose-polish.ps1 -Rollback -Preflight
+.\version587\install-compose-polish.ps1 -Rollback
+```
+
+上面的回退只恢复已验收 EXE `24665d04`，保留已验收 helper `1a42c709`。完整封存 5.0 的恢复入口见 [5.0 封存记录](../version587/archive-5.0.md)。

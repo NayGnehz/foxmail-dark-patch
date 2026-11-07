@@ -63,48 +63,11 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId version587-20261105 -Mode
         return
     }
 
-    function BytesHash([byte[]]$bytes) {
-        [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
-    }
-    function StreamHash([IO.FileStream]$stream) {
-        $stream.Position = 0
-        [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)).ToLowerInvariant()
-    }
-    function WriteChecked([IO.FileStream]$stream, [byte[]]$bytes, [string]$expected) {
-        $stream.Position = 0
-        $stream.Write($bytes, 0, $bytes.Length)
-        $stream.SetLength($bytes.Length)
-        $stream.Flush($true)
-        if ((StreamHash $stream) -ne $expected) { throw 'Exclusive-handle DLL verification failed' }
-    }
-
+    . (Join-Path $PSScriptRoot 'replace-verified-software.ps1')
     $next = [IO.File]::ReadAllBytes($(if ($Rollback) { $baseline } else { $candidate }))
-    if ((BytesHash $next) -ne $wanted) { throw 'Requested DLL changed before stop' }
+    if ((Get-FoxmailBytesHash $next) -ne $wanted) { throw 'Requested DLL changed before stop' }
     & (Join-Path $PSScriptRoot 'restart-visible.ps1') -ExpectedSha $exeSha -AppRoot $app -StopOnly | Out-Null
-
-    $stream = $null
-    $deadline = [DateTime]::UtcNow.AddSeconds(8)
-    do {
-        try { $stream = [IO.File]::Open($target, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None) }
-        catch [IO.IOException] {
-            if ([DateTime]::UtcNow -ge $deadline) { throw }
-            [Threading.Thread]::Sleep(100)
-        }
-    } while (!$stream)
-
-    try {
-        if ((StreamHash $stream) -ne $current) { throw 'Installed DLL identity changed before exclusive write' }
-        $stream.Position = 0
-        $prior = [byte[]]::new([int]$stream.Length)
-        $stream.ReadExactly($prior)
-        try { WriteChecked $stream $next $wanted }
-        catch {
-            WriteChecked $stream $prior $current
-            throw
-        }
-    } finally {
-        $stream.Dispose()
-    }
+    Set-FoxmailVerifiedSoftware -Target $target -Replacement $next -Before $current -After $wanted
 
     if ((Hash $target) -ne $wanted) { throw 'Installed DLL hash changed before launch' }
     $run = & (Join-Path $PSScriptRoot 'restart-visible.ps1') -ExpectedSha $exeSha -AppRoot $app | ConvertFrom-Json
