@@ -21,20 +21,14 @@ if not exist "%~dp0Foxmail.exe" (
     set "foxmail_patch_status=2"
     goto finish
 )
-set "foxmail_patch_pwsh=%ProgramFiles%\PowerShell\7\pwsh.exe"
-if exist "%foxmail_patch_pwsh%" goto run
-set "foxmail_patch_pwsh="
-for %%I in (pwsh.exe) do set "foxmail_patch_pwsh=%%~$PATH:I"
-if not defined foxmail_patch_pwsh goto no_pwsh
-for %%I in ("%foxmail_patch_pwsh%") do if /i "%%~dpI"=="%~dp0" goto no_pwsh
-
-:run
-"%foxmail_patch_pwsh%" -NoLogo -NoProfile -Command "__FOXMAIL_BOOTSTRAP__"
+set "foxmail_patch_ps=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+if not exist "%foxmail_patch_ps%" goto no_powershell
+"%SystemRoot%\System32\more.com" +__FOXMAIL_COMMAND_LINE__ "%FOXMAIL_PATCH_SELF%" | "%foxmail_patch_ps%" -NoLogo -NoProfile -NonInteractive -Command -
 set "foxmail_patch_status=%errorlevel%"
 goto finish
 
-:no_pwsh
-echo PowerShell 7 is required. Install it or add pwsh.exe to PATH.
+:no_powershell
+echo Windows PowerShell 5.1 is required.
 set "foxmail_patch_status=2"
 goto finish
 
@@ -48,3 +42,5 @@ exit /b %foxmail_patch_status%
 
 :__FOXMAIL_PAYLOAD__
 __FOXMAIL_ARCHIVE__
+:__FOXMAIL_POWERSHELL__
+__FOXMAIL_COMMAND__

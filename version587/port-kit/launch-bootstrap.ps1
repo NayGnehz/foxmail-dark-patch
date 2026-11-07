@@ -4,12 +4,17 @@ $status = 1;
 $stage = $null;
 $created = $false;
 try {
+    if ($PSVersionTable.PSVersion -lt [version]'5.1') { throw 'Windows PowerShell 5.1 is required'; }
     $appRoot = [IO.Path]::GetDirectoryName($env:FOXMAIL_PATCH_SELF);
     $raw = [IO.File]::ReadAllText($env:FOXMAIL_PATCH_SELF);
-    $marker = [string][char]10 + ':__FOXMAIL_PAYLOAD__' + [char]13 + [char]10;
-    $offset = $raw.LastIndexOf($marker, [StringComparison]::Ordinal);
+    $startMarker = "`n:__FOXMAIL_PAYLOAD__`r`n";
+    $endMarker = "`n:__FOXMAIL_POWERSHELL__`r`n";
+    $offset = $raw.IndexOf($startMarker, [StringComparison]::Ordinal);
     if ($offset -lt 0) { throw 'Embedded Foxmail patch archive missing'; }
-    $bytes = [Convert]::FromBase64String($raw.Substring($offset + $marker.Length));
+    $offset += $startMarker.Length;
+    $end = $raw.IndexOf($endMarker, $offset, [StringComparison]::Ordinal);
+    if ($end -le $offset) { throw 'Embedded Foxmail patch archive incomplete'; }
+    $bytes = [Convert]::FromBase64String($raw.Substring($offset, $end - $offset));
     $sha = [Security.Cryptography.SHA256]::Create();
     try {
         $digest = [BitConverter]::ToString($sha.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant();
@@ -17,8 +22,9 @@ try {
         $sha.Dispose();
     }
     if ($digest -ne '__FOXMAIL_ARCHIVE_SHA__') { throw 'Embedded Foxmail patch archive failed SHA256 verification'; }
-    $tempRoot = [IO.Path]::TrimEndingDirectorySeparator([IO.Path]::GetFullPath([IO.Path]::GetTempPath()));
-    if (![IO.Path]::GetDirectoryName($tempRoot)) { throw 'TEMP must be an existing non-root directory'; }
+    $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath());
+    if ($tempRoot -eq [IO.Path]::GetPathRoot($tempRoot)) { throw 'TEMP must be an existing non-root directory'; }
+    $tempRoot = $tempRoot.TrimEnd([char]92, [char]47);
     for ($dir = $tempRoot; $dir; $dir = [IO.Path]::GetDirectoryName($dir)) {
         $item = Get-Item -LiteralPath $dir -Force;
         if (!$item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -32,6 +38,7 @@ try {
     $stream = [IO.MemoryStream]::new($bytes, $false);
     $archive = $null;
     try {
+        Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem;
         $archive = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Read);
         [IO.Compression.ZipFileExtensions]::ExtractToDirectory($archive, $stage);
     } finally {
@@ -39,14 +46,14 @@ try {
         $stream.Dispose();
     }
     $profile = if ($env:FOXMAIL_PATCH_MODE -eq 'trial') { 'deployed-trial' } else { '5.0' };
-    $options = @{AppRoot = $appRoot; Profile = $profile};
+    $options = @{AppRoot = $appRoot; Profile = $profile; KitRoot = $stage};
     if ($env:FOXMAIL_PATCH_MODE -ne 'check') {
         $parent = [IO.Directory]::GetParent($appRoot);
         if (!$parent) { throw 'Run this CMD in a Foxmail folder below the drive root'; }
         $folder = [IO.Path]::GetFileName($appRoot) + '-dark-overlay-' + $profile;
         $options.OutputDirectory = [IO.Path]::Combine($parent.FullName, $folder);
     }
-    $json = & ([IO.Path]::Combine($stage, 'Apply-FoxmailDark.ps1')) @options;
+    $json = & $apply @options;
     $json | Write-Output;
     $report = $json | ConvertFrom-Json;
     $status = if ($report.canGenerate) { 0 } else { 2 };

@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$AppRoot,
     [ValidatePattern('^\d+\.\d+\.\d+\.\d+$')][string]$VersionFolder,
     [ValidateNotNullOrEmpty()][string]$OutputDirectory,
-    [ValidateSet('5.0', 'deployed-trial')][string]$Profile = '5.0'
+    [ValidateSet('5.0', 'deployed-trial')][string]$Profile = '5.0',
+    [Parameter(DontShow)][string]$KitRoot = $PSScriptRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -36,12 +37,21 @@ function Read-Json([string]$path) {
     [IO.File]::ReadAllText($safe) | ConvertFrom-Json
 }
 
-function Get-ByteHash([byte[]]$bytes) {
+function Get-Sha256($bytesOrStream) {
     $algorithm = [Security.Cryptography.SHA256]::Create()
     try {
-        [BitConverter]::ToString($algorithm.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant()
+        [BitConverter]::ToString($algorithm.ComputeHash($bytesOrStream)).Replace('-', '').ToLowerInvariant()
     } finally {
         $algorithm.Dispose()
+    }
+}
+
+function Get-SoftwareHash([string]$path) {
+    $stream = [IO.File]::OpenRead($path)
+    try {
+        Get-Sha256 $stream
+    } finally {
+        $stream.Dispose()
     }
 }
 
@@ -60,7 +70,7 @@ function Read-CheckedBytes([string]$path, [long]$length, [string]$hash) {
         throw ('Software length differs from the manifest ' + $safe)
     }
     $bytes = [IO.File]::ReadAllBytes($safe)
-    if ($bytes.LongLength -ne $length -or (Get-ByteHash $bytes) -ne $hash) {
+    if ($bytes.LongLength -ne $length -or (Get-Sha256 $bytes) -ne $hash) {
         throw ('Software hash differs from the manifest ' + $safe)
     }
     return ,$bytes
@@ -115,7 +125,7 @@ function Convert-Hex([string]$hex) {
     return ,$bytes
 }
 
-$kit = Get-PlainPath $PSScriptRoot
+$kit = Get-PlainPath $KitRoot
 $manifest = Read-Json (Join-Path $kit 'manifest.json')
 if ($manifest.schema -ne 1 -or $manifest.baseVersion -cne $baseVersion -or
     $manifest.originalExecutableSHA256 -notmatch $hashPattern -or @($manifest.assets).Count -ne 39 -or
@@ -148,7 +158,7 @@ if (!$VersionFolder) {
     if (!$detectedVersion) { throw 'Cannot infer the version folder. Specify -VersionFolder explicitly.' }
     $VersionFolder = $detectedVersion
 }
-$exeHash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+$exeHash = Get-SoftwareHash $exe
 $length = (Get-Item -LiteralPath $exe).Length
 $exeMatches = $layout.architecture -eq 'x86' -and $layout.format -eq 'PE32' -and
     $length -eq $originalLength -and $exeHash -eq $manifest.originalExecutableSHA256
@@ -170,7 +180,7 @@ $assetRows = @(
         $observedHash = $null
         $status = 'missing'
         if ([IO.File]::Exists($target)) {
-            $observedHash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+            $observedHash = Get-SoftwareHash $target
             $status = if ($observedHash -eq $asset.sha256) { 'alreadyDark' }
                 elseif ($asset.originalSHA256 -and $observedHash -eq $asset.originalSHA256) { 'matchesOriginal' }
                 else { 'changed' }
@@ -246,7 +256,7 @@ foreach ($edit in $delta.edits) {
     [Array]::Copy((Convert-Hex $edit.after), 0, $patched, [int]$offset, $count)
     $end = $offset + $count
 }
-if ((Get-ByteHash $patched) -ne $selected.exeSHA256) { throw 'Patched executable SHA256 verification failed' }
+if ((Get-Sha256 $patched) -ne $selected.exeSHA256) { throw 'Patched executable SHA256 verification failed' }
 $exeName = 'Foxmail' + [char]0x6df1 + [char]0x8272 + '.exe'
 $files = @(
     @{relative = $exeName; bytes = $patched; sha256 = $selected.exeSHA256}
@@ -287,7 +297,7 @@ try {
         } finally {
             $stream.Dispose()
         }
-        if ((Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash -ne $file.sha256) {
+        if ((Get-SoftwareHash $dest) -ne $file.sha256) {
             throw ('Staged file SHA256 verification failed ' + $file.relative)
         }
     }

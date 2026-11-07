@@ -60,15 +60,19 @@ def delta(before, after):
 
 
 def write_launcher(source, output, payload):
-    bootstrap = " ".join(line.strip() for line in (source / "launch-bootstrap.ps1").read_text(encoding="ascii").splitlines())
+    bootstrap = (source / "launch-bootstrap.ps1").read_text(encoding="ascii")
     bootstrap = bootstrap.replace("__FOXMAIL_ARCHIVE_SHA__", sha(payload))
-    if '"' in bootstrap or "%" in bootstrap:
-        raise ValueError("Bootstrap must fit one literal CMD argument")
+    script = (source / "Apply-FoxmailDark.ps1").read_text(encoding="ascii")
+    requirement, _, apply = script.partition("\n")
+    if requirement != "#requires -Version 5.1":
+        raise ValueError("Unexpected PowerShell entry version requirement")
+    command = "& {\n$apply = {\n" + apply + "\n}\n" + bootstrap + "\n}\n\n"
     template = (source / "launch.cmd").read_text(encoding="ascii")
     archive = "\n".join(wrap(base64.b64encode(payload).decode("ascii"), 76))
-    launcher = template.replace("__FOXMAIL_BOOTSTRAP__", bootstrap).replace("__FOXMAIL_ARCHIVE__", archive)
-    if max(map(len, launcher.splitlines())) > 7600:
-        raise ValueError("Launcher exceeds the Windows command-line budget")
+    prefix, marker, _ = template.replace("__FOXMAIL_ARCHIVE__", archive).partition("__FOXMAIL_COMMAND__")
+    if not marker or not prefix.endswith("\n"):
+        raise ValueError("PowerShell command section must start on a new line")
+    launcher = prefix.replace("__FOXMAIL_COMMAND_LINE__", str(prefix.count("\n"))) + command
     data = launcher.replace("\n", "\r\n").encode("ascii")
     with tempfile.NamedTemporaryFile(dir=output.parent, suffix=".partial", delete=False) as handle:
         partial = Path(handle.name)
