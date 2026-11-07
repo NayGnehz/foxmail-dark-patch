@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$')][string]$InstanceId='version587-20261105')
+param(
+ [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$')][string]$InstanceId='version587-20261105',
+ [ValidatePattern('^version587-compose-ready(?:-check-[a-zA-Z0-9-]{1,32})?$')][string]$OutputGroup='version587-compose-ready'
+)
 $ErrorActionPreference='Stop'
 $project=Split-Path $PSScriptRoot -Parent
 $adapter=Join-Path $project 'Invoke-FoxmailPortable.ps1'
@@ -10,17 +13,22 @@ Import-Module (Join-Path $context.environmentRoot 'bin\PortableCache.psm1')
 Invoke-PortableInstance -ProjectId foxmail -InstanceId $InstanceId -Mode Prepare -Body {
  param($instance)
  $sourceGate=Join-Path $instance.instanceRoot 'temp\version587-compose-ready-source'
- $stage=Join-Path $instance.instanceRoot 'temp\version587-compose-ready'
+ $sourceStage=Join-Path $instance.instanceRoot 'temp\version587-compose-ready'
+ $stage=Join-Path $instance.instanceRoot ('temp\'+$OutputGroup)
  $source=Join-Path $sourceGate 'foxmail_reveal_gate.c'
  $fixture=Join-Path $PSScriptRoot 'verify-compose-ready.c'
  $asyncHeader=Join-Path $PSScriptRoot 'compose-ready-async.h'
  $apiHeader=Join-Path $PSScriptRoot 'compose-ready-api.h'
+ $auditPath=Join-Path $sourceStage 'source-audit.json'
  $libs=Join-Path $stage 'import-libs'
- foreach($p in @($sourceGate,$stage,$source,$fixture,$asyncHeader,$libs)){$null=Assert-PortablePlainPath $p}
- [void][IO.Directory]::CreateDirectory($libs)
+ foreach($p in @($sourceGate,$stage,$source,$fixture,$asyncHeader,$apiHeader,$auditPath,$libs)){$null=Assert-PortablePlainPath $p}
  function Hash([string]$p){(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}
  $sourceHashes=@{}
- foreach($p in @($source,$fixture,$asyncHeader,$apiHeader,(Join-Path $PSScriptRoot 'check-compose-ready.ps1'),(Join-Path $sourceGate 'foxmail_reveal_gate.h'),(Join-Path $stage 'source-audit.json'))){$sourceHashes[$p]=Hash $p}
+ foreach($p in @($source,$fixture,$asyncHeader,$apiHeader,(Join-Path $PSScriptRoot 'check-compose-ready.ps1'),(Join-Path $sourceGate 'foxmail_reveal_gate.h'),$auditPath)){$sourceHashes[$p]=Hash $p}
+ $audit=Get-Content -LiteralPath $auditPath -Raw|ConvertFrom-Json
+ if(!$audit.reversibleTransformVerified -or $audit.sourceSHA256 -ne $sourceHashes[$source]){throw 'Generated helper source does not match the reversible source audit'}
+ if($stage -eq $sourceStage -and ($audit.asyncSHA256 -ne $sourceHashes[$asyncHeader] -or $audit.apiSHA256 -ne $sourceHashes[$apiHeader])){throw 'Regenerate the compose source audit before rebuilding the package stage, or use an isolated -OutputGroup'}
+ [void][IO.Directory]::CreateDirectory($libs)
  $map=Get-Content -LiteralPath (Join-Path $instance.instanceRoot 'temp\version587-goal\canvas-map.json') -Raw|ConvertFrom-Json
  $apiText=Get-Content -LiteralPath $apiHeader -Raw
  $expectedAtoms=@(0xEFA1B6,0xEFA1B4,0xEF6B80,0xEF6B7E)

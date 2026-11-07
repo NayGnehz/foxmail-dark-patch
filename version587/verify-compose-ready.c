@@ -88,11 +88,28 @@ static long __stdcall window_proc(FXG_HWND h,UINT msg,UINT wp,long lp){return De
 static FXG_DWORD cloak(FXG_HWND h){FXG_DWORD v=0xffffffffUL;if(DwmGetWindowAttribute(h,14,&v,4)<0)return 0xffffffffUL;return v;}
 static CTX *lookup(FXG_HWND h){int i;for(i=0;i<20;i++)if(contexts[i].root==h)return &contexts[i];return 0;}
 static FXG_HWND window(const WCH *name,FXG_HWND parent){return CreateWindowExW(0,name,(const WCH *)L"Own asynchronous fixture",parent?0x50000000UL:0x00cf0000UL,parent?0:-24000,parent?0:-24000,300,180,parent,0,instance,0);}
-static CTX *make(int n,int tree){CTX *c=&contexts[n];unsigned int i;unsigned char *p=(unsigned char *)c;for(i=0;i<sizeof(*c);i++)p[i]=0;c->root=window(compose,0);CHECK(c->root);c->expected_cloak=1;if(tree){c->editor=window(editorClass,c->root);c->host=window(hostClass,c->editor);c->browser=window(browserClass,c->host);c->widget=window(widgetClass,c->browser);c->renderer=window(renderClass,c->widget);CHECK(c->editor&&c->host&&c->browser&&c->widget&&c->renderer);c->surface=1;bind_objects(c);}return c;}
+static void make_host(CTX *c) {
+ c->host=window(hostClass,c->editor);
+ c->browser=window(browserClass,c->host);
+ c->widget=window(widgetClass,c->browser);
+ c->renderer=window(renderClass,c->widget);
+ CHECK(c->host&&c->browser&&c->widget&&c->renderer);
+ c->surface=1;
+ bind_objects(c);
+}
+static CTX *make(int n,int tree){CTX *c=&contexts[n];unsigned int i;unsigned char *p=(unsigned char *)c;for(i=0;i<sizeof(*c);i++)p[i]=0;c->root=window(compose,0);CHECK(c->root);c->expected_cloak=1;if(tree){c->editor=window(editorClass,c->root);CHECK(c->editor);make_host(c);}return c;}
 static void destroy(CTX *c){if(c->root&&IsWindow(c->root))CHECK(DestroyWindow(c->root));c->root=0;}
 static void drain(void){MESSAGE m;int n=0;while(PeekMessageW(&m,0,0,0,1)){DispatchMessageW(&m);if(++n>2000){CHECK(0);break;}}}
 static void pump_for(FXG_DWORD ms){FXG_DWORD start=GetTickCount();do{drain();Sleep(5);}while(GetTickCount()-start<ms);drain();}
-static FXG_DWORD __stdcall invoke(void *opaque){CTX *c=(CTX *)opaque;FXG_DWORD in=GetLastError();c->calls++;c->incoming_ok=in==IN_ERROR;CHECK(c->incoming_ok);CHECK(cloak(c->root)==c->expected_cloak);if(c->action==2){SetLastError(OUT_ERROR);RaiseException(TEST_EXCEPTION,0,0,0);}if(c->action==3){DestroyWindow(c->root);SetLastError(OUT_ERROR);return 0;}if(c->action==4&&c->nested){SetLastError(IN_ERROR);run(c->nested->root,invoke,c->nested);CHECK(GetLastError()==OUT_ERROR);}if(c->action!=1)ShowWindow(c->root,4);SetLastError(OUT_ERROR);return 0;}
+static FXG_DWORD __stdcall invoke(void *opaque){CTX *c=(CTX *)opaque;FXG_DWORD in=GetLastError();c->calls++;c->incoming_ok=in==IN_ERROR;CHECK(c->incoming_ok);CHECK(cloak(c->root)==c->expected_cloak);if(c->action==2){SetLastError(OUT_ERROR);RaiseException(TEST_EXCEPTION,0,0,0);}if(c->action==3){DestroyWindow(c->root);SetLastError(OUT_ERROR);return 0;}if(c->action==4&&c->nested){SetLastError(IN_ERROR);run(c->nested->root,invoke,c->nested);CHECK(GetLastError()==OUT_ERROR);}if(c->action==5){
+  FXG_HWND oldHost=c->host;
+  // Keep the old HWND alive until the new chain has a distinct identity.
+  c->loaded=0;
+  make_host(c);
+  CHECK(c->host!=oldHost);
+  CHECK(DestroyWindow(oldHost));
+ }
+ if(c->action!=1)ShowWindow(c->root,4);SetLastError(OUT_ERROR);return 0;}
 static void start(CTX *c){FXG_DWORD result,error;SetLastError(IN_ERROR);result=run(c->root,invoke,c);error=GetLastError();CHECK(result==0&&error==OUT_ERROR&&c->calls==1);}
 static void released(CTX *c){CHECK(cloak(c->root)==0);CHECK(!GetPropW(c->root,owner));}
 static FXG_DWORD __stdcall worker(void *opaque){CTX *c=(CTX *)opaque;c->action=1;c->expected_cloak=0;start(c);return 0;}
@@ -127,6 +144,10 @@ static void common_cases(void){
  CTX *c,*d;FXG_DWORD active,closed,releasedBefore,readyBefore,staleBefore;void *thread;volatile FXG_DWORD caught,error;int i;
  test_name="ready notification next boundary";c=make(0,1);active=readyStats->active;readyBefore=readyStats->readyReleased;start(c);CHECK(cloak(c->root)==1&&GetPropW(c->root,owner)&&readyStats->active==active+1);CHECK(GetPropW(c->root,(const WCH *)FX_READY_MESSAGE_PROP));loaded(c,1);evaluate(c,2);released(c);CHECK(readyStats->active==active&&readyStats->readyReleased==readyBefore+1);destroy(c);
  test_name="previously loaded shell snapshot ready";c=make(0,1);loaded(c,1);start(c);evaluate(c,1);released(c);destroy(c);
+ test_name="replacement host needs its own readiness";
+ c=make(0,1);loaded(c,1);c->action=5;start(c);evaluate(c,1);
+ CHECK(cloak(c->root)==1&&readyStats->active==1);
+ loaded(c,1);evaluate(c,2);released(c);destroy(c);
  test_name="wrong token and foreign host";c=make(0,1);d=make(1,1);start(c);loaded(c,1);staleBefore=readyStats->staleMessages;SendMessageW(c->root,readyMessage,(UINT)GetPropW(c->root,owner)+1,(long)c->host);CHECK(cloak(c->root)==1);SendMessageW(c->root,readyMessage,(UINT)GetPropW(c->root,owner),(long)d->host);CHECK(cloak(c->root)==1);CHECK(readyStats->staleMessages>=staleBefore+1);evaluate(c,2);released(c);destroy(c);destroy(d);
  test_name="missing renderer bounded timeout";c=make(0,1);CHECK(DestroyWindow(c->renderer));c->renderer=0;c->surface=0;start(c);loaded(c,1);evaluate(c,2);CHECK(cloak(c->root)==1);timeout(c);released(c);destroy(c);
  test_name="fresh latch alone cannot release";c=make(0,1);start(c);loaded(c,1);evaluate(c,1);CHECK(cloak(c->root)==1);timeout(c);released(c);destroy(c);

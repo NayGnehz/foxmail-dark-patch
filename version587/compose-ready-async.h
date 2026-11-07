@@ -222,7 +222,8 @@ static int ready_adopt(FX_READY_SLOT *s) {
  FXG_HWND host=0;int loaded;
  if(!s||!s->used||s->phase!=1||!ready_owns(s)||!owns_record()||recovery.owner!=s->owner||!IsWindowVisible(s->hwnd)||IsIconic(s->hwnd))return 0;
  loaded=READY_SNAPSHOT(s->hwnd,&host);
- if(loaded>=0)s->host=host;
+ // Readiness belongs to the observed host. The original Show can replace it.
+ if(loaded>=0&&host!=s->host){s->host=host;s->ready=0;}
  s->started=READY_TICK();s->phase=2;QINC(armed);QINC(active);clear_record();
  ready_evaluate(s);return 1;
 }
