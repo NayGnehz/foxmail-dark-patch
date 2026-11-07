@@ -3,9 +3,8 @@
 // No CLI, file access, application access, or deployment side effects.
 const assert = require('assert');
 const crypto = require('crypto');
-const zlib = require('zlib');
 const {readResources} = require('../pe-resource-utils.cjs');
-const {pngDecode} = require('../recolor-search-scrollbars.cjs');
+const {pngDecode, pngEncodeRGBA} = require('../recolor-search-scrollbars.cjs');
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const targets = [
   {name:'ADDRESS_ADDRESS_BAR_PNG', width:32, height:64,
@@ -13,46 +12,6 @@ const targets = [
   {name:'ADDRESS_ADDRESS_BAR_2X_PNG', width:64, height:128,
     hash:'cf6af1a987ee0bdaf04f5fc1d69526cebe5eb53aba8271baf168689d100b96df'}
 ];
-const signature = Buffer.from('89504e470d0a1a0a','hex');
-const crcTable = Array.from({length:256},(_,n) => {
-  for(let i=0;i<8;i++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1;
-  return n >>> 0;
-});
-function chunk(type, data) {
-  const out = Buffer.alloc(data.length + 12);
-  out.writeUInt32BE(data.length); out.write(type,4,4,'ascii'); data.copy(out,8);
-  let crc = 0xffffffff;
-  for(const v of out.subarray(4,out.length-4)) crc = crcTable[(crc ^ v)&255] ^ (crc >>> 8);
-  out.writeUInt32BE((crc ^ 0xffffffff) >>> 0,out.length-4);
-  return out;
-}
-function paeth(a,b,c) {
-  const p=a+b-c, x=Math.abs(p-a), y=Math.abs(p-b), z=Math.abs(p-c);
-  return x<=y && x<=z ? a : y<=z ? b : c;
-}
-// Always RGBA6: native skin loading has already required this format.
-function encodeRGBA(im) {
-  const stride=im.width*4, raw=Buffer.alloc((stride+1)*im.height);
-  for(let y=0;y<im.height;y++) {
-    let best, bestFilter=0, bestScore=Infinity;
-    for(let f=0;f<5;f++) {
-      const row=Buffer.alloc(stride); let score=0;
-      for(let x=0;x<stride;x++) {
-        const at=y*stride+x, a=x>=4?im.rgba[at-4]:0,
-          b=y?im.rgba[at-stride]:0, c=y&&x>=4?im.rgba[at-stride-4]:0;
-        const prediction=f===0?0:f===1?a:f===2?b:f===3?Math.floor((a+b)/2):paeth(a,b,c);
-        row[x]=(im.rgba[at]-prediction)&255; score+=Math.min(row[x],256-row[x]);
-      }
-      if(score<bestScore) {best=row;bestFilter=f;bestScore=score;}
-    }
-    raw[y*(stride+1)]=bestFilter; best.copy(raw,y*(stride+1)+1);
-  }
-  const hdr=Buffer.alloc(13); hdr.writeUInt32BE(im.width); hdr.writeUInt32BE(im.height,4);
-  hdr[8]=8; hdr[9]=6;
-  return Buffer.concat([signature,chunk('IHDR',hdr),
-    ...(im.phys?[chunk('pHYs',im.phys)]:[]),
-    chunk('IDAT',zlib.deflateSync(raw,{level:9})),chunk('IEND',Buffer.alloc(0))]);
-}
 function linear(v) {v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;}
 function contrast(a,b) {return (Math.max(linear(a),linear(b))+0.05)/(Math.min(linear(a),linear(b))+0.05);}
 function patchBuffer(input) {
@@ -102,7 +61,7 @@ function patchBuffer(input) {
     for(let i=3;i<before.length;i+=4) assert.equal(im.rgba[i],before[i],'Alpha changed');
     assert(im.rgba.subarray(im.width*stateHeight*2*4).equals(before.subarray(im.width*stateHeight*2*4)),
       'Lower two blue states changed');
-    const encoded=encodeRGBA(im), roundTrip=pngDecode(encoded);
+    const encoded=pngEncodeRGBA(im), roundTrip=pngDecode(encoded);
     assert(roundTrip.rgba.equals(im.rgba),'PNG round trip failed');
     assert.equal(encoded[25],6); assert(encoded.length<=r.size,'PNG exceeds original allocation');
     encoded.copy(out,r.offset); out.fill(0,r.offset+encoded.length,r.offset+r.size);

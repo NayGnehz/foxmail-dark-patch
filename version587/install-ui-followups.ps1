@@ -21,10 +21,13 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId version587-20261105 -Mode
  $htmlStage=Join-Path $instance.instanceRoot 'temp\version587-address-html'
  if($m.template.before -ne (Join-Path $htmlStage 'Frame.before.html') -or $m.template.source -ne (Join-Path $htmlStage 'Frame.html')){throw 'Unexpected template artifact paths'}
  foreach($p in @($exe,$frame,$m.input,$m.dest,$m.template.before,$m.template.source)){$null=Assert-PortablePlainPath $p}
- if((Hash $m.input) -ne $before -or (Hash $m.dest) -ne $after -or (Hash $m.template.before) -ne $frameBefore -or (Hash $m.template.source) -ne $frameAfter -or (Hash (Join-Path $PSScriptRoot 'ui-followups.cjs')) -ne $m.generatorSHA256){throw 'Candidate or rollback artifact changed'}
- $expectedSources=@('search-style.cjs','check-search-style.cjs','patch-address-native.cjs','address-book-html.cjs','address-book-screen.css','verify-address-book-html.cjs')
- if($m.sourceBindings.Count -ne 6){throw 'Unexpected source bindings'}
- foreach($f in $m.sourceBindings){if($f.file -notin $expectedSources -or (Hash (Join-Path $PSScriptRoot $f.file)) -ne $f.sha256){throw 'Verified component source changed'}}
+ if((Hash $m.input) -ne $before -or (Hash $m.dest) -ne $after -or (Hash $m.template.before) -ne $frameBefore -or (Hash $m.template.source) -ne $frameAfter){throw 'Candidate or rollback artifact changed'}
+ if(!$Rollback){
+  if((Hash (Join-Path $PSScriptRoot 'ui-followups.cjs')) -ne $m.generatorSHA256){throw 'Combined patch generator changed'}
+  $expectedSources=@('search-style.cjs','check-search-style.cjs','patch-address-native.cjs','address-book-html.cjs','address-book-screen.css','verify-address-book-html.cjs')
+  if($m.sourceBindings.Count -ne 6){throw 'Unexpected source bindings'}
+  foreach($f in $m.sourceBindings){if($f.file -notin $expectedSources -or (Hash (Join-Path $PSScriptRoot $f.file)) -ne $f.sha256){throw 'Verified component source changed'}}
+ }
  if((Hash (Join-Path $app 'Foxmail.exe')) -ne 'f208b5c29816d1a5ca5859edbaf1b5e83f2c8e9cab2cfe0c3fdfdd4566d5b399' -or (Hash (Join-Path $app 'FoxmailRevealGate.dll')) -ne '0e471e40cb64e5acf13d22a129849110b0ad2d21d7d4c7110036892aaa135c70' -or (Hash (Join-Path $app '7.2.25.587\Template\HtmlEditor\Common\HtmlEditor.html')) -ne 'c3a898dcbccbe41d882c0b32bd28654d32a680ab0320ec4ec2d9b9a97d4eada8' -or (Hash (Join-Path $app '7.2.25.587\Template\HtmlEditor\Common\Base.css')) -ne '8e56648adcef1ed81621930e111c446b5075e4f28c27b370c792d7dc68eef5b8'){throw 'Accepted software or compose text/caret baseline changed'}
  $current=if($Rollback){$after}else{$before};$wanted=if($Rollback){$before}else{$after}
  $currentFrame=if($Rollback){$frameAfter}else{$frameBefore};$wantedFrame=if($Rollback){$frameBefore}else{$frameAfter}

@@ -2,6 +2,7 @@
 // Combine independently audited deltas from one exact accepted baseline.
 const fs=require('fs'),path=require('path'),assert=require('assert'),crypto=require('crypto'),paths=require('../foxmail-paths.cjs');
 const {readResources}=require('../pe-resource-utils.cjs'),{patchBuffer}=require('./patch-address-native.cjs');
+const {verifyByteDelta}=require('./verify-byte-delta.cjs');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex'),read=p=>fs.readFileSync(p),json=p=>JSON.parse(read(p));
 const stage=paths.output('version587-ui-followups'),baselineSHA256='233e7bdfb5f0d3e688a46b7e9eccbed3572795b5312e7d5c810ad4a8b1b387c6';
 const input=path.join(paths.output('version587-group-border-rgba'),'Foxmail深色.exe'),base=read(input);assert.equal(sha(base),baselineSHA256);
@@ -16,16 +17,19 @@ assert(h.scriptsAndContentUnchanged&&h.screenOnly&&t.passed&&t.cases.length===8&
 assert.equal(t.candidateSHA256,h.afterSHA256);assert.equal(sha(read(h.source)),h.afterSHA256);assert.equal(sha(read(h.before)),h.beforeSHA256);
 const sourceBindings=[['search-style.cjs',s.generatorSHA256],['check-search-style.cjs',p.checkSHA256],['patch-address-native.cjs',n.generatorSHA256],['address-book-html.cjs',h.generatorSHA256],['address-book-screen.css',h.cssSHA256],['verify-address-book-html.cjs',t.verifierSHA256]];
 for(const [file,hash]of sourceBindings)assert.equal(sha(read(path.join(__dirname,file))),hash,'Verified component source changed: '+file);
-const search=read(s.dest),native=read(n.dest);assert.equal(sha(search),s.candidateSHA256);assert.equal(sha(native),n.candidateSHA256);assert.equal(search.length,base.length);assert.equal(native.length,base.length);
+// Historical reports record the original location. Resolve the known
+// artifacts through the active lease and verify their pinned bytes.
+const search=read(path.join(searchStage,'Foxmail深色.exe')),native=read(path.join(nativeStage,'Foxmail深色.exe'));
+assert.equal(sha(search),s.candidateSHA256);assert.equal(sha(native),n.candidateSHA256);
 const out=Buffer.from(base),searchRanges=s.changes.flatMap(c=>[[c.offset,c.offset+Math.max(c.oldSize,c.newSize)],[c.dataEntry+4,c.dataEntry+8]]),nativeRanges=n.changes.map(c=>[c.offset,c.offset+4]);
-let changedBytes=0,searchBytes=0,nativeBytes=0;
-for(let i=0;i<base.length;i++){
- const a=search[i]!==base[i],b=native[i]!==base[i];
- if(a){assert(searchRanges.some(([x,y])=>x<=i&&i<y),'Unexpected search delta');searchBytes++;}
- if(b){assert(nativeRanges.some(([x,y])=>x<=i&&i<y),'Unexpected address delta');nativeBytes++;}
- if(a&&b)assert.equal(search[i],native[i],'Overlapping independent deltas conflict');
- if(a||b){out[i]=b?native[i]:search[i];changedBytes++;}
+const searchBytes=verifyByteDelta(base,search,searchRanges);
+const nativeBytes=verifyByteDelta(base,native,nativeRanges);
+for(const [start,end] of searchRanges)search.copy(out,start,start,end);
+for(const [start,end] of nativeRanges){
+ assert(out.subarray(start,end).equals(base.subarray(start,end)),'Search overlaps native operand');
+ native.copy(out,start,start,end);
 }
+const changedBytes=verifyByteDelta(base,out,[...searchRanges,...nativeRanges]);
 assert.equal(nativeBytes,45);assert.equal(searchBytes,s.changedBytes);assert.equal(changedBytes,searchBytes+nativeBytes,'Layers must be disjoint');
 const chained=patchBuffer(search);assert(chained.buffer.equals(out),'Byte-union must equal guarded native patch applied to search candidate');
 const pe=base.readUInt32LE(60),op=pe+24,so=op+base.readUInt16LE(pe+20);assert(out.subarray(0,base.readUInt32LE(op+60)).equals(base.subarray(0,base.readUInt32LE(op+60))));

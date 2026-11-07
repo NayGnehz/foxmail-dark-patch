@@ -24,16 +24,39 @@ function pngDecode(b){
  return{width,height,rgba,phys};
 }
 function filterRows(pixels,width,height,bpp){const stride=width*bpp,out=Buffer.alloc((stride+1)*height);for(let y=0;y<height;y++){let best,bestScore=Infinity,bestFilter;for(let f=0;f<5;f++){const row=Buffer.alloc(stride);let score=0;for(let x=0;x<stride;x++){const at=y*stride+x,a=x>=bpp?pixels[at-bpp]:0,b=y?pixels[at-stride]:0,c=y&&x>=bpp?pixels[at-stride-bpp]:0,p=f===0?0:f===1?a:f===2?b:f===3?Math.floor((a+b)/2):paeth(a,b,c);row[x]=(pixels[at]-p)&255;score+=Math.min(row[x],256-row[x]);}if(score<bestScore){bestScore=score;best=row;bestFilter=f;}}out[y*(stride+1)]=bestFilter;best.copy(out,y*(stride+1)+1);}return out;}
-function pngEncode({width,height,rgba,phys}){
- function make(type,pixels,bpp,palette,alpha){const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=8;header[9]=type;const parts=[signature,chunk('IHDR',header)];if(phys)parts.push(chunk('pHYs',phys));if(palette)parts.push(chunk('PLTE',palette));if(alpha)parts.push(chunk('tRNS',alpha));parts.push(chunk('IDAT',zlib.deflateSync(filterRows(pixels,width,height,bpp),{level:9})),chunk('IEND',Buffer.alloc(0)));return Buffer.concat(parts);}
- const candidates=[make(6,rgba,4)];const map=new Map(),colors=[],indexes=Buffer.alloc(width*height);
+function encodePng({width,height,phys},type,rows,palette,alpha){
+ const header=Buffer.alloc(13);
+ header.writeUInt32BE(width);
+ header.writeUInt32BE(height,4);
+ header[8]=8;
+ header[9]=type;
+ const parts=[signature,chunk('IHDR',header)];
+ if(phys)parts.push(chunk('pHYs',phys));
+ if(palette)parts.push(chunk('PLTE',palette));
+ if(alpha)parts.push(chunk('tRNS',alpha));
+ parts.push(chunk('IDAT',zlib.deflateSync(rows,{level:9})),chunk('IEND',Buffer.alloc(0)));
+ return Buffer.concat(parts);
+}
+// Foxmail's group border partial-draw path requires type 6. Keep the accepted
+// row encoding as well, since these PNGs occupy fixed slots in PE resources.
+function pngEncodeRGBA(image,{filter='adaptive'}={}){
+ const {width,height,rgba}=image;
+ if(filter==='adaptive')return encodePng(image,6,filterRows(rgba,width,height,4));
+ if(filter!=='none')throw Error('Unsupported RGBA PNG filter: '+filter);
+ const stride=width*4,rows=Buffer.alloc((stride+1)*height);
+ for(let y=0;y<height;y++)rgba.copy(rows,y*(stride+1)+1,y*stride,(y+1)*stride);
+ return encodePng(image,6,rows);
+}
+function pngEncode(image){
+ const {width,height,rgba}=image;
+ const candidates=[pngEncodeRGBA(image)];const map=new Map(),colors=[],indexes=Buffer.alloc(width*height);
  for(let i=0;i<width*height;i++){const key=rgba.readUInt32BE(i*4);if(!map.has(key)){map.set(key,colors.length);colors.push(key);}if(colors.length>256)break;indexes[i]=map.get(key);}
- if(colors.length<=256){const pal=Buffer.alloc(colors.length*3),alpha=Buffer.alloc(colors.length);colors.forEach((c,i)=>{pal[i*3]=c>>>24;pal[i*3+1]=(c>>>16)&255;pal[i*3+2]=(c>>>8)&255;alpha[i]=c&255;});candidates.push(make(3,indexes,1,pal,alpha));}
+ if(colors.length<=256){const pal=Buffer.alloc(colors.length*3),alpha=Buffer.alloc(colors.length);colors.forEach((c,i)=>{pal[i*3]=c>>>24;pal[i*3+1]=(c>>>16)&255;pal[i*3+2]=(c>>>8)&255;alpha[i]=c&255;});candidates.push(encodePng(image,3,filterRows(indexes,width,height,1),pal,alpha));}
  return candidates.reduce((a,b)=>a.length<b.length?a:b);
 }
 function isSelected(r){return(r.type===10&&/^(COMMON_SEARCH_SEARCH_PANEL(_ACTIVE)?(_2X)?_PNG|ADDRESS_SEARCH_SEARCH_PANEL(_ACTIVE)?(_2X)?_PNG|SKIN_SCROLLBAR_ALL_(HORZSCROLLBAR|VERTSCROLLBAR|SCROLLBAR)_(BARHORZ(DOWN|HOVER|NORMAL)|BARVERT(DOWN|HOVER|NORMAL)|BKGHORZ|BKGVERT|BKGCROSS)_2X_PNG)$/.test(r.name))||(r.type===2&&/^(SKIN_SCROLLBAR_)?ALL_(HORZSCROLLBAR|VERTSCROLLBAR|SCROLLBAR)_(BARHORZ(DOWN|HOVER|NORMAL)|BARVERT(DOWN|HOVER|NORMAL)|BKGHORZ|BKGVERT|BKGCROSS)_BMP$/.test(r.name));}
 function mapColor(r,g,b,name){if(r>200&&b>200&&g<100)return null;const low=Math.min(r,g,b),high=Math.max(r,g,b);if(low<100||high-low>100)return null;const lum=(r+g+b)/3,delta=Math.max(-4,Math.min(4,Math.round((lum-210)/15)));let color=/BARHORZ|BARVERT/.test(name)?(/DOWN/.test(name)?[148,148,148]:/HOVER/.test(name)?[128,128,128]:[102,102,102]):/SEARCH/.test(name)?[40,40,40]:[32,32,32];return color.map(v=>v+delta);}
-module.exports={pngDecode,pngEncode};
+module.exports={pngDecode,pngEncode,pngEncodeRGBA};
 if(require.main===module){
 const [, , source,dest]=process.argv;if(!source||!dest||path.resolve(source)===path.resolve(dest))throw Error('Supply distinct input and output');const before=fs.readFileSync(source),out=Buffer.from(before),{resources,op}=readResources(out),report=[],undo=[];
 for(const r of resources.filter(isSelected)){

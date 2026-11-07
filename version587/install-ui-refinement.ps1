@@ -33,19 +33,24 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId version587-20261105 -Mode
         $manifest.addressSprites -ne 2) {
         throw 'Unexpected refinement plan'
     }
-    if ((Hash $baseline) -ne $before -or (Hash $candidate) -ne $after -or
-        (Hash (Join-Path $PSScriptRoot 'merge-ui-refinement.cjs')) -ne $manifest.generatorSHA256) {
+    if ((Hash $baseline) -ne $before -or (Hash $candidate) -ne $after) {
         throw 'Refinement or rollback artifact changed'
     }
 
-    $sources = @('search-alignment.cjs', 'patch-address-followup.cjs',
-        'patch-address-sort-sprites.cjs', 'check-address-followup.cjs')
-    if (($manifest.sourceBindings.file -join '|') -ne ($sources -join '|')) {
-        throw 'Unexpected refinement sources'
-    }
-    foreach ($source in $manifest.sourceBindings) {
-        if ((Hash (Join-Path $PSScriptRoot $source.file)) -ne $source.sha256) {
-            throw ('Verified source changed: ' + $source.file)
+    # Rollback restores the pinned preimage. Later source edits must not block it.
+    if (!$Rollback) {
+        if ((Hash (Join-Path $PSScriptRoot 'merge-ui-refinement.cjs')) -ne $manifest.generatorSHA256) {
+            throw 'Refinement generator changed'
+        }
+        $sources = @('search-alignment.cjs', 'patch-address-followup.cjs',
+            'patch-address-sort-sprites.cjs', 'check-address-followup.cjs')
+        if (($manifest.sourceBindings.file -join '|') -ne ($sources -join '|')) {
+            throw 'Unexpected refinement sources'
+        }
+        foreach ($source in $manifest.sourceBindings) {
+            if ((Hash (Join-Path $PSScriptRoot $source.file)) -ne $source.sha256) {
+                throw ('Verified source changed: ' + $source.file)
+            }
         }
     }
 
