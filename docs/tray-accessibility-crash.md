@@ -24,10 +24,10 @@ LastError。候选沿用封存的 helper DLL。现有失效节点的产生时机
 
 实际发出的指令在两个独立映射地址通过 6,656 个 x86 用例。包括正常索引、阈值、父链、
 不可读和跨页、保留 PAGE_GUARD、地址回绕、API 解析失败及寄存器、栈、EFLAGS、LastError 检查。
-测试跳到合成的续行和清理桩。真实 Delphi 清理和 Foxmail 托盘界面留待隔离运行验收。
+测试跳到合成的续行和清理桩。正常托盘路径的实机验收见下节。
 
 Windows PowerShell 5.1 上，已测试旧 CMD 安装后由新 CMD 恢复，以及新 CMD 安装后由旧 CMD 恢复。
-目录清单、原件内容、NTFS 文件 ID、创建时间和最后修改时间一致。新 CMD 的 `trial` 仍选择原有试用版。
+目录清单、原件内容、NTFS 文件 ID、文件创建时间和最后修改时间一致。新 CMD 的 `trial` 仍选择原有试用版。
 
 从项目根使用登记构建入口。
 
@@ -41,6 +41,15 @@ $zig = & .\Invoke-FoxmailPortable.ps1 -Action Tool -Tool zig -InstanceId $instan
 
 `$originalExe` 指向官方 7.2.25.587 的 `Foxmail.exe`。构建读取通过的指令测试结果。
 候选包位于登记缓存的 `temp/version587-dark-port-kit-msaa`。旧 CMD 和封存 5.0 独立保留。
+
+## Downloads 目录实机验收
+
+2026-11-08，按用户指定在 `Downloads\Foxmail` 用新版 CMD 安装候选。实际启动的 EXE 与 6,656 项
+指令测试使用的 SHA256 一致。同一进程的原主窗口连续三次从托盘隐藏状态恢复可见，之后退出。
+崩溃报告目录没有新增 DMP。实机回归覆盖正常托盘路径，故障读取由指令夹具覆盖。
+
+退出后使用同一 CMD 恢复。40 个原版文件的内容、创建时间和最后修改时间与安装前一致，工具备份已清理。
+CMD 仅写回文件时间，目录时间由 Windows 随目录操作更新。
 
 ## 本机沙盒实测入口
 
