@@ -90,6 +90,7 @@ function Read-PatchTimes($Item) {
 function Save-PatchTimes([string]$Root, [string]$Relative, $Snapshot) {
     $path = Get-PlainPath (Join-Path $Root $Relative)
     $Snapshot.files[$Relative] = Read-PatchTimes ([IO.FileInfo]::new($path))
+    # Keep directory records so older CMDs can still read v2 backups.
     foreach ($dir in Get-PatchParents $Relative) {
         if (!$Snapshot.directories.ContainsKey($dir)) {
             $path = Get-PatchDirectory $Root $dir
@@ -230,7 +231,6 @@ function Invoke-FoxmailInstall($Mode, $Root, $Manifest, $Report, [int]$BackupVer
         if ($state.version -eq 2) {
             $timestamps = Read-Json (Join-Path $state.path 'timestamps.json')
             $fileTimes = Get-RestoreTimes $timestamps.files @($items | ForEach-Object { $_.relative })
-            $dirTimes = Get-RestoreTimes $timestamps.directories $directories
         }
 
         if ($Mode -eq 'check') {
@@ -295,13 +295,8 @@ function Invoke-FoxmailInstall($Mode, $Root, $Manifest, $Report, [int]$BackupVer
             if ($stockLock) { $stockLock.Dispose(); $stockLock = $null }
             if (!$legacy) {
                 foreach ($item in $items) { Set-RestoredTimes ([IO.FileInfo]::new($item.target)) $fileTimes[$item.relative] }
-                foreach ($dir in $directories | Where-Object { $_ -ne '.' } | Sort-Object { $_.Length } -Descending) {
-                    $path = Get-PatchDirectory $Root $dir
-                    Set-RestoredTimes ([IO.DirectoryInfo]::new($path)) $dirTimes[$dir]
-                }
             }
             $cleanup = Clear-RestoredBackup $state $items $Root
-            if (!$legacy) { Set-RestoredTimes ([IO.DirectoryInfo]::new($Root)) $dirTimes['.'] }
         }
 
         [ordered]@{
