@@ -172,26 +172,31 @@ def main():
         content["payload/" + relative] = data
 
     profiles = {}
+    base_profile = "5.0"
+    base_exe = checked(payload / EXE, sealed_exe["sha256"])
     inputs = [
-        ("5.0", payload / EXE, sealed_exe["sha256"], payload / HELPER, sealed_helper["sha256"]),
+        (base_profile, payload / EXE, sealed_exe["sha256"], payload / HELPER, sealed_helper["sha256"]),
         ("deployed-trial", temp / "version587-compose-polish" / EXE, TRIAL_EXE_SHA,
          temp / "version587-compose-ready-check-host-ownership" / HELPER, TRIAL_DLL_SHA),
     ]
-    default_profile = "5.0"
+    default_profile = base_profile
     if args.msaa_tray_guard:
         guarded_exe, guarded_sha = verified_tray_guard(temp, sealed_exe["sha256"])
         default_profile = TRAY_GUARD_PROFILE
         inputs.append((default_profile, guarded_exe, guarded_sha, payload / HELPER, sealed_helper["sha256"]))
     for name, executable, exe_sha, dll, helper_sha in inputs:
-        target = checked(executable, exe_sha)
+        target = base_exe if name == base_profile else checked(executable, exe_sha)
         helper = checked(dll, helper_sha)
         patch_path = f"profiles/{name}/exe-delta.json"
-        helper_path = f"profiles/{name}/{HELPER}"
-        content[patch_path] = json_bytes(delta(original, target))
+        helper_owner = base_profile if helper_sha == sealed_helper["sha256"] else name
+        helper_path = f"profiles/{helper_owner}/{HELPER}"
+        content[patch_path] = json_bytes(delta(original if name == base_profile else base_exe, target))
         content[helper_path] = helper
         profiles[name] = {"exeSHA256": exe_sha, "exeLength": len(target),
                           "helperSHA256": helper_sha, "helperLength": len(helper),
                           "patch": patch_path, "helper": helper_path}
+        if name != base_profile:
+            profiles[name]["baseProfile"] = base_profile
 
     content["manifest.json"] = json_bytes({
         "schema": 1, "baseVersion": BASE_VERSION, "originalExecutableSHA256": ORIGINAL_SHA,

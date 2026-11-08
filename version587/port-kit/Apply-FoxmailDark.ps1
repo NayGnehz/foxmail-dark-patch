@@ -133,19 +133,52 @@ if ($manifest.schema -ne 1 -or $manifest.baseVersion -cne $baseVersion -or
     $null -eq $manifest.profiles) {
     throw 'Invalid Foxmail kit manifest'
 }
-$entry = $manifest.profiles.PSObject.Properties[$Profile]
-if ($null -eq $entry) { throw ('Missing patch profile ' + $Profile) }
-$selected = $entry.Value
-if ($selected.exeSHA256 -notmatch $hashPattern -or $selected.helperSHA256 -notmatch $hashPattern -or
-    $selected.patch -cne "profiles/$Profile/exe-delta.json" -or
-    $selected.helper -cne "profiles/$Profile/FoxmailRevealGate.dll") {
-    throw ('Invalid patch profile ' + $Profile)
-}
 $originalLength = Read-Integer $manifest.originalExecutableLength 'original EXE length'
-$exeLength = Read-Integer $selected.exeLength 'patched EXE length'
-$helperLength = Read-Integer $selected.helperLength 'helper length'
-if ($originalLength -lt 64 -or $exeLength -lt $originalLength -or $exeLength -gt [int]::MaxValue -or
-    $helperLength -lt 64 -or $helperLength -gt [int]::MaxValue) { throw 'Invalid patch profile lengths' }
+if ($originalLength -lt 64 -or $originalLength -gt [int]::MaxValue) { throw 'Invalid original EXE length' }
+
+function Get-KitProfile([string]$Name) {
+    $entry = $manifest.profiles.PSObject.Properties[$Name]
+    if ($null -eq $entry) { throw ('Missing patch profile ' + $Name) }
+    $definition = $entry.Value
+    $base = $definition.PSObject.Properties['baseProfile']
+    $baseName = $null
+    if ($base) {
+        if ($Name -eq '5.0' -or $base.Value -isnot [string] -or $base.Value -cne '5.0') {
+            throw 'Invalid base profile'
+        }
+        $baseName = $base.Value
+    }
+    $sharedHelper = $baseName -and $definition.helper -ceq 'profiles/5.0/FoxmailRevealGate.dll'
+    if ($definition.exeSHA256 -notmatch $hashPattern -or $definition.helperSHA256 -notmatch $hashPattern -or
+        $definition.patch -cne "profiles/$Name/exe-delta.json" -or
+        (!$sharedHelper -and $definition.helper -cne "profiles/$Name/FoxmailRevealGate.dll")) {
+        throw ('Invalid patch profile ' + $Name)
+    }
+    $exeLength = Read-Integer $definition.exeLength 'patched EXE length'
+    $helperLength = Read-Integer $definition.helperLength 'helper length'
+    if ($exeLength -lt $originalLength -or $exeLength -gt [int]::MaxValue -or
+        $helperLength -lt 64 -or $helperLength -gt [int]::MaxValue) { throw 'Invalid patch profile lengths' }
+    @{
+        baseProfile = $baseName
+        patch = $definition.patch
+        exeLength = $exeLength
+        exeSHA256 = $definition.exeSHA256
+        helper = $definition.helper
+        helperLength = $helperLength
+        helperSHA256 = $definition.helperSHA256
+    }
+}
+
+$selected = Get-KitProfile $Profile
+$baseProfile = $null
+if ($selected.baseProfile) {
+    $baseProfile = Get-KitProfile '5.0'
+    if ($selected.exeLength -lt $baseProfile.exeLength) { throw 'Invalid layered EXE length' }
+    if ($selected.helper -ceq $baseProfile.helper -and
+        ($selected.helperSHA256 -cne $baseProfile.helperSHA256 -or $selected.helperLength -ne $baseProfile.helperLength)) {
+        throw 'Shared helper metadata must match the base profile'
+    }
+}
 
 $root = Get-PlainPath $AppRoot
 if (![IO.Directory]::Exists($root)) { throw 'AppRoot must be the Foxmail software folder' }
@@ -228,11 +261,11 @@ $report = [ordered]@{
     generated = $false
     outputDirectory = $null
 }
-function Get-FoxmailPatchFiles([string]$ExecutableName = ('Foxmail' + [char]0x6df1 + [char]0x8272 + '.exe')) {
-    $delta = Read-Json (Join-Path $kit $selected.patch)
+function Apply-ExecutableDelta([byte[]]$Source, $PatchProfile) {
+    $delta = Read-Json (Join-Path $kit $PatchProfile.patch)
     if ($null -eq $delta.edits -or $delta.append -isnot [string]) { throw 'Invalid executable delta' }
-    $source = Read-CheckedBytes $exe $originalLength $manifest.originalExecutableSHA256
     $append = [Convert]::FromBase64String($delta.append)
+    $exeLength = $PatchProfile.exeLength
     if ($source.LongLength + $append.LongLength -ne $exeLength) { throw 'Unexpected executable delta length' }
     $patched = [byte[]]::new([int]$exeLength)
     [Array]::Copy($source, $patched, $source.Length)
@@ -244,8 +277,8 @@ function Get-FoxmailPatchFiles([string]$ExecutableName = ('Foxmail' + [char]0x6d
             $edit.before -notmatch '^(?:[0-9a-f]{2})+$' -or $edit.after -notmatch '^(?:[0-9a-f]{2})+$' -or
             $edit.before.Length -ne $edit.after.Length) { throw 'Invalid executable edit bytes' }
         $count = [int]($edit.before.Length / 2)
-        if ($offset -lt $end -or $offset -gt $originalLength - $count) {
-            throw 'Executable delta edits overlap or exceed the original image'
+        if ($offset -lt $end -or $offset -gt $source.LongLength - $count) {
+            throw 'Executable delta edits overlap or exceed the input image'
         }
         if ([BitConverter]::ToString($source, [int]$offset, $count).Replace('-', '') -ne $edit.before) {
             throw ('Executable delta preimage mismatch at byte ' + $offset)
@@ -253,10 +286,17 @@ function Get-FoxmailPatchFiles([string]$ExecutableName = ('Foxmail' + [char]0x6d
         [Array]::Copy((Convert-Hex $edit.after), 0, $patched, [int]$offset, $count)
         $end = $offset + $count
     }
-    if ((Get-Sha256 $patched) -ne $selected.exeSHA256) { throw 'Patched executable SHA256 verification failed' }
+    if ((Get-Sha256 $patched) -ne $PatchProfile.exeSHA256) { throw 'Patched executable SHA256 verification failed' }
+    return ,$patched
+}
+
+function Get-FoxmailPatchFiles([string]$ExecutableName = ('Foxmail' + [char]0x6df1 + [char]0x8272 + '.exe')) {
+    $source = Read-CheckedBytes $exe $originalLength $manifest.originalExecutableSHA256
+    if ($baseProfile) { $source = Apply-ExecutableDelta $source $baseProfile }
+    $patched = Apply-ExecutableDelta $source $selected
     @(
         @{relative = $ExecutableName; bytes = $patched; sha256 = $selected.exeSHA256}
-        @{relative = 'FoxmailRevealGate.dll'; bytes = (Read-CheckedBytes (Join-Path $kit $selected.helper) $helperLength $selected.helperSHA256); sha256 = $selected.helperSHA256}
+        @{relative = 'FoxmailRevealGate.dll'; bytes = (Read-CheckedBytes (Join-Path $kit $selected.helper) $selected.helperLength $selected.helperSHA256); sha256 = $selected.helperSHA256}
         foreach ($asset in $manifest.assets) {
             $payload = Join-Path (Join-Path $kit 'payload') $asset.relative
             @{relative = $asset.relative; bytes = (Read-CheckedBytes $payload ([long]$asset.length) $asset.sha256); sha256 = $asset.sha256}
