@@ -29,3 +29,5 @@
 2026-11-12 的四处界面对比度候选及 CMD 恢复兼容记录见 [截图问题修复](docs/contrast-followup-20261112.md)。
 
 选人窗口白闪已由用户实际验收消失，见 [列表首次擦底修复及验收](docs/chooser-first-erase-20261112.md)。
+
+随后报告的收取弹窗白闪已做局部候选并部署到 Downloads 验收目录，真实显示结果待用户反馈，见 [收取弹窗首次擦底](docs/receive-first-erase-20261112.md)。
