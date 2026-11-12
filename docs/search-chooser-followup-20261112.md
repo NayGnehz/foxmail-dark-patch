@@ -48,3 +48,20 @@ CMD 为 601,815 字节，SHA256 为 `a123c05d6d32f8bfb0e10c39dca41f236687d954061
 41 文件的字节、创建时间和修改时间核对通过，备份目录在恢复时清理完整。
 记录在 `temp/version587-search-chooser-downloads-ea0519c3/validation.json`。
 最终保留新版候选，视觉验收等待用户反馈。
+
+## 本轮用户验收与白闪定位
+
+用户随后确认其他修改均正常，选人窗口白闪仍在。本轮没有消除该白闪，不能把安装/恢复通过写成视觉验收通过。
+
+`audit-chooser-erase.py` 对原版与当前候选的静态字节核对得到：
+
+- 两类树均继承 `TBaseVirtualTree.WM_ERASEBKGND`，原版入口 `0x9872C8`。
+  原函数仅将消息结果写成 1，表示擦底已处理，没有填充 HDC。
+- 当前候选将该入口跳转至 `0x197E82A`，现有首次填充只匹配 `TVirtualDrawTree` 的 VMT `0x96FBBC`。
+  选人右侧使用 `TVirtualStringTree`，VMT 为 `0x96D398`，实际候选的判断不包含它。
+- 上轮修改了 DFM 背景和普通绘制/擦除回调的颜色，没有补齐这条首次填充路径。
+
+确定存在补丁覆盖遗漏，原版也确实具有这种延后实际背景绘制的处理方式。
+该遗漏与白闪吻合，但尚未做原版与候选同场景的显示时序对照，不能断言原版存在同样可见的白闪，或认定这就是唯一原因。
+本次仅诊断与记录，已部署 EXE/CMD 保持上一轮候选。
+证据位于登记缓存 `temp/version587-search-chooser-followup/erase-audit.json`。

@@ -86,3 +86,14 @@ elif sys.argv[1]=='properties':
      if not names or name in names:print(n.classname(v),name,'get',hex(n.u32(p+4)),'set',hex(n.u32(p+8)))
      p+=27+length
    parent=n.read(v-36);v=n.read(parent)if parent else 0
+elif sys.argv[1]=='dispatch':
+ message=int(sys.argv[3],0)
+ for v in n.classes(sys.argv[2]):
+  while v:
+   table=n.read(v-48)
+   if table:
+    count=struct.unpack_from('<H',n.b,n.off(table))[0];assert count<4096
+    for i in range(count):
+     value=struct.unpack_from('<H',n.b,n.off(table+2+2*i))[0]
+     if value==message:print(n.classname(v),hex(v),hex(message),hex(n.read(table+2+2*count+4*i)))
+   parent=n.read(v-36);v=n.read(parent)if parent else 0
