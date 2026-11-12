@@ -1,6 +1,7 @@
 """Bounded static code inspection for screenshot contrast fixes. No process access."""
-import importlib.util, hashlib, struct, sys
+import importlib.util, hashlib, struct, sys, os
 from pathlib import Path
+os.environ['FOXMAIL_STATIC_EXE']=str(Path(os.environ['PORTABLE_INSTANCE_ROOT'])/'temp/version587-guard-wsb-7da1a592/guest-input/Foxmail/Foxmail.exe')
 spec=importlib.util.spec_from_file_location('native',Path(__file__).parent.parent/'native-whitebars.py')
 n=importlib.util.module_from_spec(spec);spec.loader.exec_module(n)
 assert hashlib.sha256(n.b).hexdigest()=='f208b5c29816d1a5ca5859edbaf1b5e83f2c8e9cab2cfe0c3fdfdd4566d5b399'
@@ -17,7 +18,7 @@ if sys.argv[1]=='classes':
      q=n.off(p)
      if kind=='methods':
       size=struct.unpack_from('<H',n.b,q)[0];a=n.read(p+2);length=n.b[q+6];label=n.b[q+7:q+7+length].decode();p+=size
-      if any(x in label.lower()for x in ['init','creat','load','font','search','show']):print(kind,label,hex(a))
+      if any(x in label.lower()for x in ['init','creat','load','font','search','show','paint','draw','erase']):print(kind,label,hex(a))
      else:
       a=n.read(p);length=n.b[q+6];label=n.b[q+7:q+7+length].decode();p+=7+length
       if any(x in label.lower()for x in ['search','edit','font']):print(kind,label,hex(a))
@@ -40,3 +41,48 @@ elif sys.argv[1]=='field-bytes':
   at=n.b.find(needle,at,raw+size)
   if at<0:break
   va=n.va(at-2);print('FIELD',hex(va),n.b[at-10:at].hex());n.dis(va,65);at+=4
+elif sys.argv[1]=='published':
+ for name in sys.argv[2:]:
+  needle=bytes([len(name)])+name.encode();at=0
+  while True:
+   at=n.b.find(needle,at)
+   if at<0:break
+   print(name,hex(n.va(at)),hex(n.u32(at-4)));at+=len(needle)
+elif sys.argv[1]=='vmt':
+ for name in sys.argv[2:]:
+  for v in n.classes(name):
+   print(name,hex(v),'parent',n.classname(n.read(n.read(v-36))))
+   for i in range(0,0x80,4):print(hex(i),hex(n.read(v+i)))
+elif sys.argv[1]=='fields':
+ for v in n.classes(sys.argv[2]):
+  p=n.read(v-56);count=struct.unpack_from('<H',n.b,n.off(p))[0];p+=6
+  for _ in range(count):
+   q=n.off(p);a=n.read(p);length=n.b[q+6];name=n.b[q+7:q+7+length].decode();p+=7+length
+   print(name,hex(a))
+elif sys.argv[1]=='near':
+ center=int(sys.argv[2],0)&~3
+ for v in range(center-0x4000,center+0x4000,4):
+  try:
+   if n.read(v-76)==v:print(hex(v),n.classname(v))
+  except (ValueError,UnicodeDecodeError,struct.error):pass
+elif sys.argv[1]=='literal':
+ start,size,color=[int(x,0)for x in sys.argv[2:]];raw=n.off(start);at=raw
+ while True:
+  at=n.b.find(struct.pack('<I',color),at,raw+size)
+  if at<0:break
+  if n.b[at-1] in (0x68,0xba,0xb9,0xb8):n.dis(n.va(at-1),26)
+  at+=4
+elif sys.argv[1]=='properties':
+ names=set(sys.argv[3:])
+ for v in n.classes(sys.argv[2]):
+  while v:
+   ti=n.read(v-60)
+   if ti:
+    p=n.off(ti);assert n.b[p]==7
+    q=p+2+n.b[p+1];assert n.u32(q)==v
+    own=q+11+n.b[q+10];count=struct.unpack_from('<H',n.b,own)[0];p=own+2;assert count<1000
+    for _ in range(count):
+     length=n.b[p+26];name=n.b[p+27:p+27+length].decode();assert length<128
+     if not names or name in names:print(n.classname(v),name,'get',hex(n.u32(p+4)),'set',hex(n.u32(p+8)))
+     p+=27+length
+   parent=n.read(v-36);v=n.read(parent)if parent else 0

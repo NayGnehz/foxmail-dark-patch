@@ -1,4 +1,4 @@
-import sys,struct,re,json
+import sys,struct,re,json,os
 # Fixed shared dependency; no per-project installation or global fallback.
 from pathlib import Path
 _workspace = next((p for p in Path(__file__).resolve().parents if (p / '_env' / 'contracts' / 'portable-v1.json').is_file()), None)
@@ -9,7 +9,7 @@ if not (_capstone_root / 'capstone' / '__init__.py').is_file():
     raise RuntimeError('Restore shared Capstone 5.0.9; no global fallback')
 sys.path.insert(0, str(_capstone_root))
 from capstone import *
-b=open(r'D:\Users\Public\Downloads\Foxmail\Foxmail.exe','rb').read()
+b=Path(os.environ.get('FOXMAIL_STATIC_EXE',r'D:\Users\Public\Downloads\Foxmail\Foxmail.exe')).read_bytes()
 u32=lambda o:struct.unpack_from('<I',b,o)[0]
 pe=u32(60);op=pe+24;base=u32(op+28);so=op+struct.unpack_from('<H',b,pe+20)[0]
 sections=[]

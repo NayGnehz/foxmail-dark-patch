@@ -111,9 +111,12 @@ def main():
     parser.add_argument("--original", required=True, type=Path)
     parser.add_argument("--msaa-tray-guard", action="store_true")
     parser.add_argument("--contrast-followup", action="store_true")
+    parser.add_argument("--search-chooser-followup", action="store_true")
     args = parser.parse_args()
     if args.contrast_followup and not args.msaa_tray_guard:
         parser.error("--contrast-followup requires --msaa-tray-guard")
+    if args.search_chooser_followup and not args.contrast_followup:
+        parser.error("--search-chooser-followup requires --contrast-followup")
     if args.original.name.lower() != "foxmail.exe":
         raise ValueError("Use the exact unmodified Foxmail.exe as --original")
     if not args.original.is_absolute():
@@ -204,6 +207,19 @@ def main():
             checked(project / "version587" / name, digest)
         target = stage / "Foxmail.exe"
         checked(target, report["candidateSHA256"])
+        contrast_sha = report["candidateSHA256"]
+        if args.search_chooser_followup:
+            followup = temp / "version587-search-chooser-followup"
+            followup_report = json.loads((followup / "validation.json").read_text(encoding="utf-8"))
+            if (followup_report["baselineSHA256"] != contrast_sha
+                    or followup_report["reverseRestoresExactInput"] is not True
+                    or followup_report["otherPropertiesAndResourcesUnchanged"] is not True
+                    or len(followup_report["colors"]) != 11 or len(followup_report["forms"]) != 4):
+                raise ValueError("Search/chooser verification is incomplete")
+            checked(project / "version587/search-chooser-followup.cjs", followup_report["generatorSHA256"])
+            target = followup / "Foxmail.exe"
+            checked(target, followup_report["candidateSHA256"])
+            contrast_sha = followup_report["candidateSHA256"]
         if len(report["externalAssets"]) != 1:
             raise ValueError("Expected one additional attachment background")
         item = report["externalAssets"][0]
@@ -216,7 +232,7 @@ def main():
         additional_assets.append({key: item[key] for key in ("relative", "sha256", "length", "originalSHA256")})
         content["payload/" + item["relative"]] = data
         default_profile = contrast_profile
-        inputs.append((contrast_profile, target, report["candidateSHA256"], payload / HELPER, sealed_helper["sha256"]))
+        inputs.append((contrast_profile, target, contrast_sha, payload / HELPER, sealed_helper["sha256"]))
     for name, executable, exe_sha, dll, helper_sha in inputs:
         target = base_exe if name == base_profile else checked(executable, exe_sha)
         helper = checked(dll, helper_sha)
@@ -242,8 +258,9 @@ def main():
     source = Path(__file__).parent
     content["Apply-FoxmailDark.ps1"] = (source / "Apply-FoxmailDark.ps1").read_bytes()
     content["README.txt"] = (source / "README.txt").read_bytes()
-    group = "version587-dark-port-kit-contrast" if args.contrast_followup else (
-        "version587-dark-port-kit-msaa" if args.msaa_tray_guard else "version587-dark-port-kit")
+    group = "version587-dark-port-kit-search-chooser" if args.search_chooser_followup else (
+        "version587-dark-port-kit-contrast" if args.contrast_followup else (
+            "version587-dark-port-kit-msaa" if args.msaa_tray_guard else "version587-dark-port-kit"))
     out = temp / group
     out.mkdir(exist_ok=True)
     output = out / "Foxmail-Dark-Port-Kit.zip"

@@ -41,6 +41,9 @@ helper 沿用 `0e471e40cb64e5acf13d22a129849110b0ad2d21d7d4c7110036892aaa135c70`
 记录在登记缓存 `temp/version587-contrast-downloads-551df505/validation.json`。
 最终保留修复候选，交互视觉验收等待用户反馈。
 
+用户随后确认本轮四处效果均正常。下一轮邮件搜索与选人窗口问题见
+[搜索与选人后续修复](search-chooser-followup-20261112.md)。
+
 ## 构建
 
 ```powershell
