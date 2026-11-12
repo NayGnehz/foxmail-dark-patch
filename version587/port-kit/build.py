@@ -112,11 +112,14 @@ def main():
     parser.add_argument("--msaa-tray-guard", action="store_true")
     parser.add_argument("--contrast-followup", action="store_true")
     parser.add_argument("--search-chooser-followup", action="store_true")
+    parser.add_argument("--chooser-first-erase", action="store_true")
     args = parser.parse_args()
     if args.contrast_followup and not args.msaa_tray_guard:
         parser.error("--contrast-followup requires --msaa-tray-guard")
     if args.search_chooser_followup and not args.contrast_followup:
         parser.error("--search-chooser-followup requires --contrast-followup")
+    if args.chooser_first_erase and not args.search_chooser_followup:
+        parser.error("--chooser-first-erase requires --search-chooser-followup")
     if args.original.name.lower() != "foxmail.exe":
         raise ValueError("Use the exact unmodified Foxmail.exe as --original")
     if not args.original.is_absolute():
@@ -220,6 +223,24 @@ def main():
             target = followup / "Foxmail.exe"
             checked(target, followup_report["candidateSHA256"])
             contrast_sha = followup_report["candidateSHA256"]
+        if args.chooser_first_erase:
+            erase_stage = temp / "version587-chooser-first-erase"
+            erase_report_file = erase_stage / "validation.json"
+            erase_report = json.loads(erase_report_file.read_text(encoding="utf-8"))
+            abi = json.loads((erase_stage / "abi-validation.json").read_text(encoding="utf-8-sig"))
+            if (erase_report["baselineSHA256"] != contrast_sha or erase_report["selectorBytes"] != 96
+                    or erase_report["appendBytes"] != 512 or erase_report["resourcesUnchanged"] is not True
+                    or erase_report["reverseRestoresExactInput"] is not True
+                    or abi["passed"] is not True or abi["cases"] != 2732 or abi["imageBases"] != 2
+                    or abi["oldCandidateDemonstratesMissingFill"] is not True
+                    or abi["candidateSHA256"] != erase_report["candidateSHA256"]):
+                raise ValueError("Chooser first-erase verification is incomplete")
+            target = erase_stage / "Foxmail.exe"
+            for artifact in (erase_report_file, erase_stage / "chooser-erase-fixture.h", target,
+                             project / "version587/chooser-first-erase.cjs", project / "version587/verify-chooser-first-erase.c"):
+                checked(artifact, abi["inputs"][str(artifact)])
+            checked(erase_stage / "verify-chooser-first-erase.exe", abi["fixtureSHA256"])
+            contrast_sha = erase_report["candidateSHA256"]
         if len(report["externalAssets"]) != 1:
             raise ValueError("Expected one additional attachment background")
         item = report["externalAssets"][0]
@@ -258,9 +279,10 @@ def main():
     source = Path(__file__).parent
     content["Apply-FoxmailDark.ps1"] = (source / "Apply-FoxmailDark.ps1").read_bytes()
     content["README.txt"] = (source / "README.txt").read_bytes()
-    group = "version587-dark-port-kit-search-chooser" if args.search_chooser_followup else (
-        "version587-dark-port-kit-contrast" if args.contrast_followup else (
-            "version587-dark-port-kit-msaa" if args.msaa_tray_guard else "version587-dark-port-kit"))
+    group = "version587-dark-port-kit-chooser-first-erase" if args.chooser_first_erase else (
+        "version587-dark-port-kit-search-chooser" if args.search_chooser_followup else (
+            "version587-dark-port-kit-contrast" if args.contrast_followup else (
+                "version587-dark-port-kit-msaa" if args.msaa_tray_guard else "version587-dark-port-kit")))
     out = temp / group
     out.mkdir(exist_ok=True)
     output = out / "Foxmail-Dark-Port-Kit.zip"

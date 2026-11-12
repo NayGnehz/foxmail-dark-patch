@@ -1,6 +1,6 @@
 ﻿[CmdletBinding()]
 param([string]$InstanceId='version587-20261105',
- [ValidateSet('version587-dark-port-kit-contrast','version587-dark-port-kit-search-chooser')][string]$KitGroup='version587-dark-port-kit-contrast')
+ [ValidateSet('version587-dark-port-kit-contrast','version587-dark-port-kit-search-chooser','version587-dark-port-kit-chooser-first-erase')][string]$KitGroup='version587-dark-port-kit-contrast')
 $ErrorActionPreference='Stop'
 $adapter=Join-Path (Split-Path $PSScriptRoot -Parent) 'Invoke-FoxmailPortable.ps1'
 $context=& $adapter -Action Resolve -InstanceId $InstanceId
@@ -78,9 +78,14 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId $InstanceId -Mode Prepare
  $restore=Invoke-Cmd $cmd 'restore';Assert $restore.backupRemoved 'New backup cleanup failed';Verify-Original
  $oldInstall=Invoke-Cmd $oldEntry 'apply';Assert ($oldInstall.backupFileCount -eq 40) 'Expected old 40-file backup'
  $oldRestore=Invoke-Cmd $cmd 'restore';Assert $oldRestore.backupRemoved 'Old backup cleanup failed';Verify-Original
- if($KitGroup -eq 'version587-dark-port-kit-search-chooser'){
+ if($KitGroup -ne 'version587-dark-port-kit-contrast'){
   $previous=Join-Path $root 'previous.cmd';[IO.File]::Copy((Join-Path $temp 'version587-dark-port-kit-contrast\Foxmail-Dark-Patch.cmd'),$previous)
   [void](Invoke-Cmd $previous 'apply');Assert ((Hash (Join-Path $root 'Foxmail.exe')) -eq '77fcfb3a2f4552463ac89534040fce36408643a536a706e2e3cad9a47d33ba19') 'Previous v3 fixture mismatch'
+  [void](Invoke-Cmd $cmd 'restore');Verify-Original
+ }
+ if($KitGroup -eq 'version587-dark-port-kit-chooser-first-erase'){
+  $previous=Join-Path $root 'previous-search.cmd';[IO.File]::Copy((Join-Path $temp 'version587-dark-port-kit-search-chooser\Foxmail-Dark-Patch.cmd'),$previous)
+  [void](Invoke-Cmd $previous 'apply');Assert ((Hash (Join-Path $root 'Foxmail.exe')) -eq 'ff1e6f70c7bb551242ce441b8008a1ff211dbbcfe812d3866e713d31d6d865a6') 'Previous search/chooser v3 fixture mismatch'
   [void](Invoke-Cmd $cmd 'restore');Verify-Original
  }
  $trial=Invoke-Cmd $cmd 'trial';Assert ($trial.backupFileCount -eq 40) 'Trial changed additional attachment asset'
@@ -96,7 +101,7 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId $InstanceId -Mode Prepare
  Assert ($LASTEXITCODE -eq 0) ('New loader with old manifest '+($result -join ' '))
  Assert ((Hash (Join-Path $output 'Foxmail深色.exe')) -eq 'eee4f4bd6d0241aad5e86bfaf121fd2b4a4a1a32c45d04d9584f798f699f82be') 'Old manifest produced a different executable'
  Verify-Original
- $report=@{passed=$true;kitGroup=$KitGroup;previousV3Restored=($KitGroup -eq 'version587-dark-port-kit-search-chooser');oldManifestCompatible=$true;originalFiles=41;creationAndWriteTimes=$true;newInstallRestore=$true;oldInstallNewRestore=$true;trialUnchanged=$true;doubleClickToggle=$true;oldCmdSafelyRejectsNewBackup=$true;cmdSHA256=Hash $new;stage=$stage}
+ $report=@{passed=$true;kitGroup=$KitGroup;previousV3Restored=($KitGroup -ne 'version587-dark-port-kit-contrast');previousSearchV3Restored=($KitGroup -eq 'version587-dark-port-kit-chooser-first-erase');oldManifestCompatible=$true;originalFiles=41;creationAndWriteTimes=$true;newInstallRestore=$true;oldInstallNewRestore=$true;trialUnchanged=$true;doubleClickToggle=$true;oldCmdSafelyRejectsNewBackup=$true;cmdSHA256=Hash $new;stage=$stage}
  $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $stage 'validation.json') -Encoding utf8
  $report | ConvertTo-Json
 }
