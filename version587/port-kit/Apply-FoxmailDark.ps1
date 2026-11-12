@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$AppRoot,
     [ValidatePattern('^\d+\.\d+\.\d+\.\d+$')][string]$VersionFolder,
     [ValidateNotNullOrEmpty()][string]$OutputDirectory,
-    [ValidateSet('5.0', '5.0-msaa', 'deployed-trial')][string]$Profile = '5.0',
+    [ValidateSet('5.0', '5.0-msaa', '5.0-msaa-contrast', 'deployed-trial')][string]$Profile = '5.0',
     [Parameter(DontShow)][string]$KitRoot = $PSScriptRoot,
     [Parameter(DontShow)][ValidateSet('toggle', 'apply', 'restore', 'check')][string]$Operation
 )
@@ -158,7 +158,10 @@ function Get-KitProfile([string]$Name) {
     $helperLength = Read-Integer $definition.helperLength 'helper length'
     if ($exeLength -lt $originalLength -or $exeLength -gt [int]::MaxValue -or
         $helperLength -lt 64 -or $helperLength -gt [int]::MaxValue) { throw 'Invalid patch profile lengths' }
+    $extraNames = @()
+    if ($definition.PSObject.Properties['additionalAssets']) { $extraNames = @($definition.additionalAssets) }
     @{
+        additionalAssets = @($extraNames)
         baseProfile = $baseName
         patch = $definition.patch
         exeLength = $exeLength
@@ -184,7 +187,15 @@ $root = Get-PlainPath $AppRoot
 if (![IO.Directory]::Exists($root)) { throw 'AppRoot must be the Foxmail software folder' }
 $exe = Get-PlainPath (Join-Path $root 'Foxmail.exe')
 $paths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-foreach ($asset in $manifest.assets) {
+$additional = @()
+if ($manifest.PSObject.Properties['additionalAssets']) { $additional = @($manifest.additionalAssets) }
+if ($additional.Count -gt 1 -or ($additional.Count -and
+    ($additional[0].relative -cne '7.2.25.587/PngImages/attach_select.png' -or
+     $additional[0].originalSHA256 -cne '75f8ed7ab0a4e2b14a08f6c8e00ef351e541b5d4ed08862a675254813a0019dd'))) {
+    throw 'Invalid additional asset inventory'
+}
+$allAssets = @($manifest.assets) + $additional
+foreach ($asset in $allAssets) {
     $relative = [string]$asset.relative
     if ($relative -notmatch '^7\.2\.25\.587/(?:PngImages|Skin|Template)/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.(?:png|html|css)$' -or
         $relative -match '(?:^|/)\.{1,2}(?:/|$)|[.](?:/|$)' -or !$paths.Add($relative) -or
@@ -196,6 +207,15 @@ foreach ($asset in $manifest.assets) {
         throw ('Asset exceeds the supported length ' + $relative)
     }
 }
+
+$extraNames = @($selected.additionalAssets)
+if ($extraNames.Count -gt 1 -or ($extraNames.Count -and
+    ($extraNames[0] -isnot [string] -or $extraNames[0] -cne '7.2.25.587/PngImages/attach_select.png' -or !$additional.Count))) {
+    throw 'Invalid profile additional assets'
+}
+foreach ($asset in $additional) { $asset | Add-Member -NotePropertyName optional -NotePropertyValue $true }
+$manifest | Add-Member -NotePropertyName recoveryAssets -NotePropertyValue $allAssets
+$manifest.assets = @($manifest.assets) + @($additional | Where-Object { $extraNames -ccontains $_.relative })
 
 if ($Operation) {
     $backupInfo = Get-PatchBackup $root $manifest.originalExecutableSHA256

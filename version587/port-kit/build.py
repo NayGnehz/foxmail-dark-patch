@@ -110,7 +110,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--original", required=True, type=Path)
     parser.add_argument("--msaa-tray-guard", action="store_true")
+    parser.add_argument("--contrast-followup", action="store_true")
     args = parser.parse_args()
+    if args.contrast_followup and not args.msaa_tray_guard:
+        parser.error("--contrast-followup requires --msaa-tray-guard")
     if args.original.name.lower() != "foxmail.exe":
         raise ValueError("Use the exact unmodified Foxmail.exe as --original")
     if not args.original.is_absolute():
@@ -184,6 +187,36 @@ def main():
         guarded_exe, guarded_sha = verified_tray_guard(temp, sealed_exe["sha256"])
         default_profile = TRAY_GUARD_PROFILE
         inputs.append((default_profile, guarded_exe, guarded_sha, payload / HELPER, sealed_helper["sha256"]))
+    additional_assets = []
+    contrast_profile = "5.0-msaa-contrast"
+    if args.contrast_followup:
+        stage = temp / "version587-contrast-followup"
+        report = json.loads((stage / "validation.json").read_text(encoding="utf-8"))
+        if (report["baselineSHA256"] != guarded_sha or report["trayGuardUnchanged"] is not True
+                or report["recipientStubUnchanged"] is not True or report["recipientABI"]["passed"] is not True
+                or report["recipientABI"]["cases"] != 1280):
+            raise ValueError("Contrast follow-up verification is incomplete")
+        if set(report["sources"]) != {"contrast-followup.cjs", "compose-recipient-contrast.cjs", "compose-toolbar-shadow.cjs"}:
+            raise ValueError("Incomplete contrast source bindings")
+        for name, digest in report["sources"].items():
+            if name not in ("contrast-followup.cjs", "compose-recipient-contrast.cjs", "compose-toolbar-shadow.cjs"):
+                raise ValueError("Unexpected contrast source")
+            checked(project / "version587" / name, digest)
+        target = stage / "Foxmail.exe"
+        checked(target, report["candidateSHA256"])
+        if len(report["externalAssets"]) != 1:
+            raise ValueError("Expected one additional attachment background")
+        item = report["externalAssets"][0]
+        if (item["relative"] != f"{BASE_VERSION}/PngImages/attach_select.png"
+                or item["originalSHA256"] != "75f8ed7ab0a4e2b14a08f6c8e00ef351e541b5d4ed08862a675254813a0019dd"):
+            raise ValueError("Unexpected attachment background inventory")
+        data = checked(stage / "COMPOSE_ATTACH_SELECT_PNG.png", item["sha256"])
+        if len(data) != item["length"]:
+            raise ValueError("Unexpected additional asset length")
+        additional_assets.append({key: item[key] for key in ("relative", "sha256", "length", "originalSHA256")})
+        content["payload/" + item["relative"]] = data
+        default_profile = contrast_profile
+        inputs.append((contrast_profile, target, report["candidateSHA256"], payload / HELPER, sealed_helper["sha256"]))
     for name, executable, exe_sha, dll, helper_sha in inputs:
         target = base_exe if name == base_profile else checked(executable, exe_sha)
         helper = checked(dll, helper_sha)
@@ -198,14 +231,20 @@ def main():
         if name != base_profile:
             profiles[name]["baseProfile"] = base_profile
 
-    content["manifest.json"] = json_bytes({
+    kit_manifest = {
         "schema": 1, "baseVersion": BASE_VERSION, "originalExecutableSHA256": ORIGINAL_SHA,
         "originalExecutableLength": len(original), "assets": assets, "profiles": profiles,
-    })
+    }
+    if additional_assets:
+        kit_manifest["additionalAssets"] = additional_assets
+        profiles[contrast_profile]["additionalAssets"] = [item["relative"] for item in additional_assets]
+    content["manifest.json"] = json_bytes(kit_manifest)
     source = Path(__file__).parent
     content["Apply-FoxmailDark.ps1"] = (source / "Apply-FoxmailDark.ps1").read_bytes()
     content["README.txt"] = (source / "README.txt").read_bytes()
-    out = temp / ("version587-dark-port-kit-msaa" if args.msaa_tray_guard else "version587-dark-port-kit")
+    group = "version587-dark-port-kit-contrast" if args.contrast_followup else (
+        "version587-dark-port-kit-msaa" if args.msaa_tray_guard else "version587-dark-port-kit")
+    out = temp / group
     out.mkdir(exist_ok=True)
     output = out / "Foxmail-Dark-Port-Kit.zip"
     with tempfile.NamedTemporaryFile(dir=out, suffix=".partial", delete=False) as handle:

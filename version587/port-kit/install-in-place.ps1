@@ -59,7 +59,7 @@ function Get-PatchBackup([string]$Root, [string]$OriginalHash) {
     $marker = Get-PlainPath (Join-Path $backup 'backup-identity.txt')
     if ([IO.File]::Exists($marker)) {
         $identity = [IO.File]::ReadAllText($marker)
-        foreach ($version in 1, 2) {
+        foreach ($version in 1, 2, 3) {
             if ($identity -ceq "FoxmailDarkBackup/$version $OriginalHash") {
                 return @{path=$backup; version=$version}
             }
@@ -120,7 +120,7 @@ function Set-RestoredTimes($Item, $Times) {
 
 function Clear-RestoredBackup($State, $Items, [string]$Root) {
     $files = @('backup-identity.txt')
-    if ($State.version -eq 2) {
+    if ($State.version -ge 2) {
         $files += 'timestamps.json', 'patch-pending.bin'
     } else {
         $files += @($Items | Where-Object cleanupOriginal | ForEach-Object { $_.relative })
@@ -184,6 +184,9 @@ function Invoke-FoxmailInstall($Mode, $Root, $Manifest, $Report, [int]$BackupVer
         if ($state.version -ne $BackupVersion) { throw 'The backup changed. Run the CMD again.' }
         $restoring = $state.version -ne 0
         $legacy = $state.version -eq 1
+        if ($state.version -eq 3 -and @($Manifest.recoveryAssets | Where-Object optional).Count -ne 1) {
+            throw 'This backup includes the attachment background. Use the contrast follow-up CMD to restore it completely.'
+        }
         if ($Mode -eq 'restore' -and !$restoring) { throw 'No recognized original backup was found' }
         if ($Mode -eq 'apply' -and $restoring) { throw 'Run the CMD without arguments or use restore before installing again' }
 
@@ -193,8 +196,20 @@ function Invoke-FoxmailInstall($Mode, $Root, $Manifest, $Report, [int]$BackupVer
         if (!$restoring -and (Test-PatchFile $oldDark)) {
             throw 'An older dark executable exists. Restore it using its own backup before installing.'
         }
+        $inventory = @($Manifest.assets)
+        $timestamps = $null
+        if ($restoring -and $state.version -ge 2) {
+            $timestamps = Read-Json (Join-Path $state.path 'timestamps.json')
+        }
+        if ($restoring -and $Manifest.PSObject.Properties['recoveryAssets']) {
+            $inventory = @($Manifest.recoveryAssets | Where-Object {
+                if (!$_.optional -or $state.version -ge 3) { $true }
+                elseif ($timestamps) { $null -ne $timestamps.files.PSObject.Properties[$_.relative] }
+                else { Test-PatchFile (Get-PlainPath (Join-Path $state.path $_.relative)) }
+            })
+        }
         $items = @(
-            foreach ($asset in $Manifest.assets) {
+            foreach ($asset in $inventory) {
                 @{relative=$asset.relative; original=$asset.originalSHA256; patch=$asset.sha256}
             }
             if (!$legacy) { @{relative='Foxmail.exe'; original=$originalHash} }
@@ -228,8 +243,7 @@ function Invoke-FoxmailInstall($Mode, $Root, $Manifest, $Report, [int]$BackupVer
                 throw 'Unrecognized files in an older patch installation'
             }
         }
-        if ($state.version -eq 2) {
-            $timestamps = Read-Json (Join-Path $state.path 'timestamps.json')
+        if ($state.version -ge 2) {
             $fileTimes = Get-RestoreTimes $timestamps.files @($items | ForEach-Object { $_.relative })
         }
 
@@ -256,7 +270,8 @@ function Invoke-FoxmailInstall($Mode, $Root, $Manifest, $Report, [int]$BackupVer
             [void][IO.Directory]::CreateDirectory($stage)
             $prepared = $stage
             foreach ($dir in $directories) { [void][IO.Directory]::CreateDirectory((Get-PatchDirectory $stage $dir)) }
-            Write-PatchWorkFile (Join-Path $stage 'backup-identity.txt') ([Text.Encoding]::ASCII.GetBytes("FoxmailDarkBackup/2 $originalHash"))
+            $backupFormat = if (@($inventory | Where-Object optional).Count) { 3 } else { 2 }
+            Write-PatchWorkFile (Join-Path $stage 'backup-identity.txt') ([Text.Encoding]::ASCII.GetBytes("FoxmailDarkBackup/$backupFormat $originalHash"))
             Write-PatchWorkFile (Join-Path $stage 'timestamps.json') ([Text.Encoding]::UTF8.GetBytes(($times | ConvertTo-Json -Depth 6)))
             [IO.Directory]::Move($stage, $state.path)
             $prepared = $null

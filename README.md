@@ -25,3 +25,5 @@
 ```powershell
 .\Invoke-FoxmailPipeline.ps1 -Script version587\port-kit\build.py -Tool python -InstanceId version587-20261105 -ScriptArguments @('--original','D:\Path\To\Foxmail.exe')
 ```
+
+2026-11-12 的四处界面对比度候选及 CMD 恢复兼容记录见 [截图问题修复](docs/contrast-followup-20261112.md)。

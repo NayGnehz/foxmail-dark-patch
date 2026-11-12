@@ -34,7 +34,7 @@ const errorApis = [
 ];
 
 function patchBuffer(before) {
-  assert.equal(sha(before), baselineSHA256, 'Expected the sealed 5.0 EXE');
+  assert([baselineSHA256, 'eee4f4bd6d0241aad5e86bfaf121fd2b4a4a1a32c45d04d9584f798f699f82be'].includes(sha(before)), 'Expected sealed 5.0 or the verified MSAA guard');
   const pe = before.readUInt32LE(0x3c);
   const op = pe + 24;
   const base = before.readUInt32LE(op + 28);
@@ -187,12 +187,13 @@ module.exports = {patchBuffer};
 if (require.main === module) {
   const paths = require('../foxmail-paths.cjs');
   const exe = 'Foxmail深色.exe';
-  const input = path.join(paths.workspace, '_releases', 'foxmail', '5.0', 'payload', exe);
-  const stage = paths.output('version587-compose-recipient-contrast');
+  const guarded = process.argv.includes('--msaa-tray-guard');
+  const input = guarded ? path.join(paths.temp, 'version587-msaa-tray-guard', 'Foxmail.exe') : path.join(paths.workspace, '_releases', 'foxmail', '5.0', 'payload', exe);
+  const stage = paths.output(guarded ? 'version587-compose-recipient-msaa' : 'version587-compose-recipient-contrast');
   const dest = path.join(stage, exe);
   const {buffer, stub, ...result} = patchBuffer(fs.readFileSync(input));
   const report = {
-    input, dest, baselineSHA256, ...result, generatorSHA256: sha(fs.readFileSync(__filename)),
+    input, dest, baselineSHA256: sha(fs.readFileSync(input)), ...result, generatorSHA256: sha(fs.readFileSync(__filename)),
     originalVA, colorSetterVA, defaultAttributesOffset, color, stubHex: stub.toString('hex'),
     scope: 'Five exact compose recipient style calls. Preserve original font application and set only native default foreground for To/Cc/Bcc. No selection, token, subject, body, loading or reveal changes.'
   };

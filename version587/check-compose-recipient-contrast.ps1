@@ -1,5 +1,6 @@
 [CmdletBinding()]
-param([ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$')][string]$InstanceId = 'version587-20261105')
+param([ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$')][string]$InstanceId = 'version587-20261105',
+    [ValidateSet('version587-compose-recipient-contrast','version587-compose-recipient-msaa')][string]$OutputGroup = 'version587-compose-recipient-contrast')
 
 $ErrorActionPreference = 'Stop'
 $adapter = Join-Path (Split-Path $PSScriptRoot -Parent) 'Invoke-FoxmailPortable.ps1'
@@ -15,7 +16,7 @@ Invoke-PortableInstance -ProjectId foxmail -InstanceId $InstanceId -Mode Prepare
         (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
     }
 
-    $stage = Join-Path $instance.instanceRoot 'temp\version587-compose-recipient-contrast'
+    $stage = Join-Path $instance.instanceRoot ('temp\' + $OutputGroup)
     $generator = Join-Path $PSScriptRoot 'compose-recipient-contrast.cjs'
     $source = Join-Path $PSScriptRoot 'verify-compose-recipient-contrast.c'
     $validationFile = Join-Path $stage 'validation.json'
