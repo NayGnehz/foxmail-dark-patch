@@ -1,4 +1,0 @@
-'use strict';
-const fs=require('fs'),path=require('path'),crypto=require('crypto'),paths=require('../foxmail-paths.cjs'),{readResources}=require('../pe-resource-utils.cjs'),{pngDecode}=require('../recolor-search-scrollbars.cjs');
-const b=fs.readFileSync(path.join(paths.output('version587-selection-only'),'Foxmail深色.exe'));
-for(const r of readResources(b).resources.filter(r=>r.type===10&&/SKIN_.*BORDER.*PNG/.test(r.name))){const im=pngDecode(b.subarray(r.offset,r.offset+r.size)),colors={};for(let i=0;i<im.rgba.length;i+=4){if(!im.rgba[i+3])continue;const k=Array.from(im.rgba.subarray(i,i+4)).join(',');colors[k]=(colors[k]||0)+1;}console.log(JSON.stringify({name:r.name,width:im.width,height:im.height,sha:crypto.createHash('sha256').update(b.subarray(r.offset,r.offset+r.size)).digest('hex'),colors:Object.entries(colors).sort((a,b)=>b[1]-a[1]).slice(0,8)}));}

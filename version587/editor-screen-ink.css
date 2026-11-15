@@ -1,4 +1,0 @@
-/* Custom Highlight foreground is a paint layer, outside editable styles. */
-@media screen {
-  ::highlight(foxmail-compose-screen-ink) { color: #d8d8d8; }
-}

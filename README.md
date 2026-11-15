@@ -45,15 +45,28 @@ CMD 可选参数：`check` 只读预检，`apply` 安装，`restore` 恢复。
 
 ## 源码与历史
 
-保留项目完整的逐次修改历史。公开前已对每个历史版本脱敏：提交作者使用统一匿名身份，
-个人目录、真实邮箱、机器名及诊断标识已泛化。因此公开提交的 SHA 与原始本地记录不同。
-技术修改顺序、提交说明、源码和皮肤资源仍保留。
+主分支只保留当前维护的源码和必要测试：
 
-历史研究记录和开发环境说明见 [开发说明](docs/DEVELOPMENT.md)，
-本版变更见 [CHANGELOG](CHANGELOG.md)，公开范围见 [PUBLICATION](PUBLICATION.md)。
+```text
+src/installer/    CMD 安装与恢复
+src/native/       正式辅助 DLL 的 C 源码
+src/version587/   当前维护的增量修复及指令测试
+tools/build.py    从已校验 ZIP 重建正式 CMD
+tests/           打包回归检查
+docs/            构建与维护说明
+```
 
-构建入口依赖登记的工具链、官方软件原件和生成证据；这些文件不随仓库分发。
-历史诊断脚本中保留的是泛化后的示例路径，运行前需要按本机环境配置。
+历次诊断、撤回实验和早期基础主题生成链保留在 **research-history** 分支及 Git 历史。
+完整修改历史仍在，发布前的个人信息脱敏保持不变。详见 [开发说明](docs/DEVELOPMENT.md)。
+
+重建 CMD 需要 Python 3 和本版 Release 的 ZIP：
+
+```text
+python tools/build.py --kit Foxmail-Dark-Port-Kit.zip --output dist/Foxmail-Dark-Patch.cmd
+```
+
+这一步复用 ZIP 内经过验收的差分、资源和 DLL，不会从零重编所有原生补丁。
+修改基础主题或适配新版 Foxmail 时，需要研究分支中的对应生成链、官方原件及工具环境。
 
 ## 验证范围
 
