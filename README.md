@@ -1,33 +1,64 @@
-# Foxmail 深色界面研究源码
+# Foxmail Dark Patch
 
-当前物理目录为 `D:\Dev\Foxmail`。英文根目录迁移及源码提交边界见
-[迁移交接](docs/migration-handoff-20261106.md)。已验收版本为 5.0，后续任务是回顾
-和优化整个修改链。参见 [5.0 封存记录](version587/archive-5.0.md)及
-[新会话交接](docs/HANDOFF-SOL-HIGH-20261107.md)。
+Foxmail Windows 深色界面补丁与可回退安装工具。
 
-本仓库保存本地 Foxmail 深色修改研究的源码、补丁、诊断/测试源码、构建入口、项目皮肤资源及必要文档。提交源码不代表发布新程序；当前运行成果、正式修改包和回滚基线均另行保留。
+**当前正式版：v5.1.0。仅支持 Windows Foxmail 7.2.25.587 的指定原版文件。**
 
-共享工具由项目祖先目录中的 `_env` 提供。`Invoke-FoxmailPortable.ps1` 复用共享入口解析固定 Node、Zig、Python 环境和 Capstone；原生编译入口将输出放入已登记的 `_cache/projects/foxmail/<instance>/temp`，并沿用共享锁与 lease。清理期间没有新增编译或业务测试。
+## 安装与恢复
 
-`build-and-check.ps1` 和标记 `FOXMAIL_RETIRED_BASELINE_CLI` 的入口属于已退役历史实验，直接运行会明确失败；源码保留供理解历史，不应重新生成已删除的旧候选。
+1. 在本仓库 **Releases** 下载 `Foxmail-Dark-Patch.cmd`。
+2. 从托盘完全退出 Foxmail。
+3. 把 CMD 放在原版 `Foxmail.exe` 同级目录，双击运行。
+4. 安装完成后，仍运行同目录的 `Foxmail.exe`。
 
-当前原生步骤见 `secondary-windows/print-native-gate/build-native-v2.ps1` 和 `secondary-windows/compose-native-gate/build-native-v2.ps1`。桥接/候选暂存已接入固定输入和登记缓存；录制器重建和旧验证记录仍有固定依赖闭包/证据有效性待维护，不能把当前仓库称作端到端便携发行构建。详见 [整理结果及未完成项](docs/cleanup-report-20261105.md)。
+恢复原版：完全退出 Foxmail，再双击同一个 CMD。原文件会从 `原版备份` 移回原位；
+文件创建时间和修改时间会还原，工具备份随之清理。
 
-仓库不包含邮件、账户、用户配置、密钥、录制帧、实际部署目录、候选 EXE/DLL、固定第三方工具、原始反汇编/参考提取物或未知 JSON。仅 `ExternalSkinUpdate/manifest.json` 经确认属于皮肤 PNG 路径/hash 清单后单独纳入。忽略文件仍保留在本地，不因 Git 提交被删除。
+如果目录里已经装过旧补丁，先用新版 CMD 恢复原版，再运行一次安装新版。
+请保留 `原版备份`，安装器不会自动关闭 Foxmail。
 
-历史源选择说明见 [source history](docs/source-history.md)。
-正式1.0 **修改包**（不是完整Foxmail安装包）现位于同一总根的 `_releases/foxmail/1.0`；项目 `restore-release-template.ps1` 从共享总根相对定位它，恢复目标须显式指定。运行中的外部Foxmail和邮件数据保持原位。候选/阶段产物归 `_cache/projects/foxmail/cleanup-01a1aba4/temp`；参见 `Invoke-FoxmailPipeline.ps1`（沿用canonical锁/lease）和 `foxmail-paths.cjs`。
+使用系统自带的 **Windows PowerShell 5.1**，不需要另装 PowerShell 7。
+校验不匹配时会停止，不能直接套用到其他版本。
 
-原生/桥接/暂存入口的路径调整没有重跑业务验证；缓存内既有JSON是原测试结果，部分记录包含路径调整前源码hash。`print-candidate/review.cjs` 仍保留源hash校验，因此旧报告与新入口hash不同时会失败，须在未来正常研究验证时生成新证据，不能把迁移视为新验证通过。`compose-initial/verify-startup-background.cjs` 还需要旧Playwright/完整编辑器测试资源，固定B只提供本轮已明确的compose模板，不补建浏览器测试闭包。
+## 本版内容
 
-整套深色版的离线移植包由 [port-kit](version587/port-kit/README.txt) 维护。退出目标 Foxmail 后，将构建生成的 `Foxmail-Dark-Patch.cmd` 放在 `Foxmail.exe` 同级即可执行，使用系统自带的 Windows PowerShell 5.1。首次双击将原版 EXE 和资源移到 `原版备份`，再以 `Foxmail.exe` 安装深色版。下一次双击移回原文件、恢复文件的创建和最后修改时间，并清理工具备份。`check` 只读预检，`trial` 安装试用配置，`restore` 显式恢复。ZIP 的 PowerShell 入口可另生成独立覆盖目录。
+- 主窗口、菜单、设置、邮件阅读、写信和地址簿的深色界面。
+- 写信收件人及抄送人、搜索文字和条件标签的对比度修复。
+- 选择地址列表及收取进度窗的首次擦底修复，减少白闪。
+- 托盘恢复时的失效辅助功能节点读取防护。
+- 单文件 CMD 安装、还原及旧备份兼容；当前备份清单为 41 个软件文件。
 
-```powershell
-.\Invoke-FoxmailPipeline.ps1 -Script version587\port-kit\build.py -Tool python -InstanceId version587-20261105 -ScriptArguments @('--original','D:\Path\To\Foxmail.exe')
-```
+补丁只修改清单中的软件文件，不读取或上传邮件、账户、联系人和个人设置。
+不包含完整 Foxmail 程序或上游运行库，请自行安装相符的官方版本。
 
-2026-11-12 的四处界面对比度候选及 CMD 恢复兼容记录见 [截图问题修复](docs/contrast-followup-20261112.md)。
+## 下载文件
 
-选人窗口白闪已由用户实际验收消失，见 [列表首次擦底修复及验收](docs/chooser-first-erase-20261112.md)。
+| 文件 | 用途 |
+| --- | --- |
+| `Foxmail-Dark-Patch.cmd` | 推荐；放到程序根目录后双击安装或恢复 |
+| `Foxmail-Dark-Port-Kit.zip` | 高级用法；PowerShell 预检和独立覆盖文件生成 |
+| `README.txt` | 离线使用说明 |
+| `SHA256SUMS.txt` | 下载文件的 SHA-256 校验值 |
 
-随后报告的收取弹窗白闪已由用户于 2026-11-15 验收通过，并授权以 v5.1.0 正式发布，见 [收取弹窗首次擦底](docs/receive-first-erase-20261112.md)。
+CMD 可选参数：`check` 只读预检，`apply` 安装，`restore` 恢复。
+`trial` 是历史试用配置，日常使用直接双击 CMD 安装正式默认配置。
+
+## 源码与历史
+
+保留项目完整的逐次修改历史。公开前已对每个历史版本脱敏：提交作者使用统一匿名身份，
+个人目录、真实邮箱、机器名及诊断标识已泛化。因此公开提交的 SHA 与原始本地记录不同。
+技术修改顺序、提交说明、源码和皮肤资源仍保留。
+
+历史研究记录和开发环境说明见 [开发说明](docs/DEVELOPMENT.md)，
+本版变更见 [CHANGELOG](CHANGELOG.md)，公开范围见 [PUBLICATION](PUBLICATION.md)。
+
+构建入口依赖登记的工具链、官方软件原件和生成证据；这些文件不随仓库分发。
+历史诊断脚本中保留的是泛化后的示例路径，运行前需要按本机环境配置。
+
+## 验证范围
+
+本版已通过补丁字节范围、资源语义、合成 GDI/ABI 检查、Windows PowerShell 5.1 CMD 安装还原、
+旧备份兼容，以及用户的真实界面验收。恢复检查包含原文件创建时间和修改时间。
+检查范围及历史限制见各修复记录；其他 Foxmail 版本、不同 DPI 或系统组合需要另行验证。
+
+本项目与 Foxmail 官方无隶属关系。
