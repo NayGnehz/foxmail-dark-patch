@@ -62,4 +62,6 @@ SHA256 为 `021a73246daef8d68f6d232a7e02ac87c0ecf9bec38a1ccd613451742e941e85`。
 
 记录为 `temp/version587-receive-first-erase-downloads-b90c10df/validation.json`。
 最终 `D:\Users\Public\Downloads\Foxmail` 保留本轮候选及配套 CMD。
-已请用户重复触发收取弹窗进行真实显示验收，结果待反馈；正式封存版仍为 5.0。
+2026-11-15 用户反馈“都好了，按正式发布发布”，本轮真实显示验收通过。
+GitHub 正式发布版本定为 v5.1.0，程序候选与配套 CMD 保持验收时的字节。
+原 5.0 封存保留为回归基线。
